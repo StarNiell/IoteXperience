@@ -38,31 +38,55 @@ class Server {
             res.json({ "key": 2, "name": "scartiloffista", "value": 899 });
         });
         this.app.get('/params', (req, res) => __awaiter(this, void 0, void 0, function* () {
-            console.log(req.query);
-            var token = req.query.token;
-            var UserID = yield this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.sendStatus(401);
-                return;
+            try {
+                console.log(req.query);
+                var token = req.query.token;
+                var UserID = yield this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return;
+                }
+                else {
+                    var key = req.query.key;
+                    let result = yield this.db.GetKeyValuesByKey(key);
+                    res.json(result);
+                }
             }
-            else {
-                var key = req.query.key;
-                let result = yield this.db.GetKeyValuesByKey(key);
-                res.json(result);
+            catch (error) {
+                console.log(error === null || error === void 0 ? void 0 : error.message);
+                res.sendStatus(500);
             }
         }));
         this.app.post('/dologin', (req, res) => __awaiter(this, void 0, void 0, function* () {
-            var username = req.body.username;
-            var password = req.body.password;
-            let result = yield this.db.DoLogin(username, password);
-            console.log(result);
-            if (Object.keys(result).length > 0) {
-                res.json(result);
+            var _a, _b, _c;
+            try {
+                let username = "";
+                let password = "";
+                if ((_a = req.body) === null || _a === void 0 ? void 0 : _a.params) {
+                    username = req.body.params.username;
+                    password = req.body.params.password;
+                }
+                else if (req.body) {
+                    username = (_b = req.body) === null || _b === void 0 ? void 0 : _b.username;
+                    password = (_c = req.body) === null || _c === void 0 ? void 0 : _c.password;
+                }
+                if (!username || !password) {
+                    res.sendStatus(401);
+                }
+                let result = yield this.db.DoLogin(username, password);
+                console.log(result);
+                if (Object.keys(result).length > 0) {
+                    res.json(result);
+                }
+                else {
+                    res.sendStatus(401);
+                    return;
+                }
             }
-            else {
-                res.sendStatus(401);
-                return;
+            catch (error) {
+                console.log(error.message);
+                res.sendStatus(500);
             }
         }));
         this.app.post('/insert', (req, res) => __awaiter(this, void 0, void 0, function* () {

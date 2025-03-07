@@ -31,13 +31,26 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
         const minPosition: number = -2.4;
         const maxPosition: number = -0.7;
         const arcRange: number = (maxPosition - minPosition);
-        const actualPosition: number = minPosition + (arcRange * this.props.temp / this.props.maxVal);
 
+        let tempCanvas: number = this.props.temp;
+        let MaxValCanvas: number = this.props.maxVal - 1;
         
+        if (this.props.temp > MaxValCanvas)
+        {
+            tempCanvas = MaxValCanvas;
+        }
+        if (this.props.temp < this.props.minVal)
+        {
+            tempCanvas = this.props.minVal;
+        }   
+
+        const actualPosition: number = minPosition + (arcRange * (tempCanvas + 1) / this.props.maxVal);
+
+
         let tempColor: string = "";
         let index: number = 0;
         this.props.rangeValues.forEach((value) => {
-            if (this.props.temp < value)    
+            if (tempCanvas < value)    
             {
                 tempColor = this.props.rangeColors[index];
             }
