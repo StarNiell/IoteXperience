@@ -9,7 +9,7 @@ function Testmqtt() {
     token = user?.data?.Token;
     return (
         <>
-            <div className='mt-5' style={{ maxWidth: '900px', margin: 'auto' }}>
+            <div className='mt-5' style={{ maxWidth: '1100px', margin: 'auto' }}>
                 <div className="row table-head rounded-top">
                     <div className="col-md-3">
                         Topic
@@ -26,8 +26,11 @@ function Testmqtt() {
                     <div className="col-md-1">
                         unit
                     </div>
-                    <div className="col-md-3">
+                    <div className="col-md-2">
                         subscription
+                    </div>
+                    <div className="col-md-2">
+                        Action
                     </div>
                 </div>
                 <ParamsMqtt token={token} />

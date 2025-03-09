@@ -1,3 +1,5 @@
+import { DeviceModel } from "./deviceModel";
+
 class Postgres {
     private host: string;
     private port: number;
@@ -87,6 +89,26 @@ class Postgres {
         try {
             var connection = await this.getConnection();
             await connection.query("INSERT INTO KeyValues (key, value) VALUES ($1, $2)", [key, value]);
+            ret = true;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async AddDevice(device: DeviceModel): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "INSERT INTO devices("
+            sql += "device_id, device_title, device_description, device_topic, device_subscription, device_type, device_value, device_step, device_min, device_max, device_unit, device_status)"
+	        sql += "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);"
+            await connection.query(sql, [device.device_id, device.title, device.description, device.topic, device.subscription, device.type, device.value, device.step, device.min, device.max, device.unit, device.status]);
             ret = true;
         }
         catch (err) {

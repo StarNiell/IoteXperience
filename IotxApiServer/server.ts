@@ -1,5 +1,6 @@
 import express from 'express';
 import { Postgres } from './postgres';
+import { DeviceModel } from './deviceModel';
 
 class Server {
     private app: express.Application;
@@ -30,14 +31,17 @@ class Server {
             res.json(result);
         });
 
+        // Test only
         this.app.get('/test', (req, res) => {
             res.json({ "key": 1, "name": "mannitidiriale", "value": 123 });
         });
 
+        // Test only
         this.app.get('/test2', (req, res) => {
             res.json({ "key": 2, "name": "scartiloffista", "value": 899 });
         });
 
+        // Test only
         this.app.get('/params', async (req, res) => {
             try {
                 console.log(req.query);
@@ -94,6 +98,17 @@ class Server {
 
         });
 
+        this.app.post('/adddevice', async (req, res) => {
+            var key = req.body.params.key;
+            var device = req.body.params.device as DeviceModel;
+            let result = await this.db.AddDevice(device);
+            if (result) {
+                console.log('Inserted');
+                res.sendStatus(200);
+            }
+        });
+
+        // Test only
         this.app.post('/insert', async (req, res) => {
             var key = req.body.key;
             var value = req.body.value;

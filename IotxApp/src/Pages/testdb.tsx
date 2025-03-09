@@ -9,7 +9,7 @@ function Testdb() {
     token = user?.data?.Token;
     return (
         <>
-            <div className='mt-5' style={{ maxWidth: '800px', margin: 'auto' }}>
+            <div className='mt-5' style={{ maxWidth: '1100px', margin: 'auto' }}>
                 <div className="row table-head rounded-top">
                     <div className="col-md-4">
                         ID
