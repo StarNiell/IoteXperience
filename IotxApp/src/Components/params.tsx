@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import ApiCalls from './apicalls.tsx';
 import { useAuth } from '../Auth/auth.tsx';
 import Notification from './notification.tsx'; // Ensure Notification is correctly imported
+import config from '../config/config.ts';
 
 const Params: React.FC<{ token: string }> = ({ token }) => {
     const [params, setParams] = useState<any[]>([]);
@@ -11,7 +12,7 @@ const Params: React.FC<{ token: string }> = ({ token }) => {
 
     useEffect(() => {
         const fetchData = async () => {
-            const data = await ApiCalls({ key: "vocals", token: token }, "http://localhost:3000/params/", "get", setAuth, setUser);
+            const data = await ApiCalls({ key: "vocals", token: token }, `${config.wsDatabaseUrl}/params/`, "get", setAuth, setUser);
             console.log(data);
             if (data?.error) {
                 setParams([]);

@@ -1,0 +1,7 @@
+{
+    "wsDatabaseUrl": "http://192.168.1.121:3000",
+    "mqttServer": "ws://192.168.1.107:1885",
+    "mqttClientId": "iotxClient01",
+    "mqttUsername": "mqtt-user",
+    "mqttPassword": "Goldendrops2025"
+  }

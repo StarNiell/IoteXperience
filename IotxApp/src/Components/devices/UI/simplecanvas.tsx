@@ -27,9 +27,11 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
     drawCanvass() {
         const canvas = this.canvas.current;
-        
-        const minPosition: number = -2.4;
-        const maxPosition: number = -0.7;
+        const startAngle: number = 215;
+        const endAngle: number = 325;
+
+        const minPosition: number = (startAngle/180 * Math.PI);
+        const maxPosition: number = (endAngle/180 * Math.PI);
         const arcRange: number = (maxPosition - minPosition);
 
         let tempCanvas: number = this.props.temp;
@@ -59,8 +61,14 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
         if (canvas) {
             const ctx = canvas.getContext("2d");
+            if (canvas.parentElement) {
+                canvas.width = canvas.parentElement.clientWidth;
+                canvas.height = canvas.parentElement.clientHeight - 25;
+            }
             const width = canvas.clientWidth / 2;
             const height = canvas.clientHeight;
+
+            console.log("width: " + width + " height: " + height);
 
             if (ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas before redrawing
@@ -69,21 +77,21 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
                 ctx.strokeStyle = '#909090';
                 ctx.lineCap = 'round';
                 ctx.lineWidth = 20;
-                ctx.arc(width, height + 60, width * 1.13, -2.4, -0.7, false); // Mouth (clockwise)
+                ctx.arc(width, height + 30, height, minPosition, maxPosition, false); // Mouth (clockwise)
                 ctx.stroke();
 
                 ctx.beginPath();
                 ctx.strokeStyle = tempColor;
                 ctx.lineCap = 'round';
                 ctx.lineWidth = 20;
-                ctx.arc(width, height + 60, width * 1.13, -2.4, actualPosition, false); // Mouth (clockwise)
+                ctx.arc(width, height + 30, height, minPosition, actualPosition, false); // Mouth (clockwise)
                 ctx.stroke();
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font="30px Verdana";
                 let textToWrite = this.props.temp.toString() + "°C";
                 let textWidth = ctx.measureText(textToWrite ).width / 2;
-                ctx.fillText(textToWrite, width - textWidth, height - 30);
+                ctx.fillText(textToWrite, width - textWidth, height - 15);
 
 
             }
@@ -95,7 +103,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
             <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
                 <center><div style={{ minHeight: "25px" }} className="bg-lightgray rounded text-dark" >{this.props.caption}</div></center>
                 <div className="device-ui" style={{ height: "132px" }}>
-                    <center><canvas ref={this.canvas} /></center>
+                    <canvas ref={this.canvas}  />
                 </div>
             </div>
         );

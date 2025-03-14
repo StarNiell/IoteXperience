@@ -10,7 +10,7 @@ import { Container } from 'react-bootstrap';
 import "./App.css";
 import AuthProvider from "./Auth/auth.tsx";
 import MqttProvider from "./Components/mqtt.tsx";
-
+import DevicesProvider from "./Components/devices-from-db.tsx";
 
 createRoot(document.getElementById('root')!).render(
   <Container style={{ minHeight: '100vh', paddingTop: '20px' }}>
@@ -18,7 +18,9 @@ createRoot(document.getElementById('root')!).render(
       <StrictMode>
         <AuthProvider>
           <MqttProvider>
-            <App />
+            <DevicesProvider>
+              <App />
+            </DevicesProvider>
           </MqttProvider>
         </AuthProvider>
       </StrictMode>

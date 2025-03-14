@@ -1,6 +1,8 @@
 import mqtt from "mqtt";
 import React, { createContext, useContext, useState } from 'react';
 import { DeviceModel } from './devices/models/deviceModel';
+import config from '../config/config';
+
 
 const MqttContext = createContext<{
   mqttClient: mqtt.MqttClient | null;
@@ -27,11 +29,13 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     console.log("connecting to mqtt broker");
     setConnectStatus('Connecting');
 
-    const brokerUrl = 'ws://192.168.1.107:1885';
+    const rand = Math.floor(Math.random() * 100);
+
+    const brokerUrl = `${config.mqttServer}`;
     const options = {
-      clientId: "iotxClient01",
-      username: "mqtt-user",
-      password: "Goldendrops2025",
+      clientId: `${config.mqttClientId}-${rand.toString()}`,
+      username: `${config.mqttUsername}`,
+      password: `${config.mqttPassword}`,
       //clean: true,
       reconnectPeriod: 0, // ms
       //connectTimeout: 5 * 1000, // ms
@@ -87,6 +91,7 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         } else {
           // Se il dispositivo non esiste, lo aggiungiamo
           const newDevice = new DeviceModel({
+            id: 0, // default value
             topic: topic,
             device_id: payload.device_id,
             type: payload.type,
@@ -94,7 +99,12 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
             timestamp: payload.timestamp,
             unit: payload.unit,
             subscription: payload.subscription,
-            status: payload.status
+            status: payload.status,
+            step: 0, // default value
+            min: 0, // default value
+            max: 100, // default value
+            title: '', // default value
+            description: '' // default value
           });
           newDeviceList.push(newDevice);
           console.log(newDevice);

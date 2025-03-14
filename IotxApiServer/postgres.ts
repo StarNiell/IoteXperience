@@ -1,4 +1,5 @@
 import { DeviceModel } from "./deviceModel";
+import { DashboardModel } from "./dashboardModel";
 
 class Postgres {
     private host: string;
@@ -105,11 +106,176 @@ class Postgres {
         var ret = false;
         try {
             var connection = await this.getConnection();
-            let sql: string = "INSERT INTO devices("
-            sql += "device_id, device_title, device_description, device_topic, device_subscription, device_type, device_value, device_step, device_min, device_max, device_unit, device_status)"
-	        sql += "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);"
-            await connection.query(sql, [device.device_id, device.title, device.description, device.topic, device.subscription, device.type, device.value, device.step, device.min, device.max, device.unit, device.status]);
+
+            var res
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM devices WHERE device_id = $1", [device.device_id])) {
+                if (res.rows[0].exists > 0) {
+                    ret = true;
+                }
+            }
+
+            if (!ret) {
+                let lastId: number = 0;
+                let sql: string = "INSERT INTO devices("
+                sql += "device_id, device_title, device_description, device_topic, device_subscription, device_type, device_value, device_step, device_min, device_max, device_unit, device_status)"
+                sql += "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);"
+                await connection.query(sql, [device.device_id, device.title, device.description, device.topic, device.subscription, device.type, device.value, device.step, device.min, device.max, device.unit, device.status]);
+                var res
+                if (res = await connection.query("SELECT MAX(id) as id FROM devices")) {
+                    lastId = res.rows[0].id;
+                }
+                if (lastId > 0) {
+                    let position: number = 0;
+                    if (res = await connection.query("SELECT MAX(position) as position FROM dashboard_devices WHERE dashboardid = 1")) {
+                        position = res.rows[0].position + 1;
+                    }
+                    sql = "INSERT INTO dashboard_devices ("
+                    sql += "dashboardid, deviceid, position) "
+                    sql += "VALUES ($1, $2, $3);"
+                    await connection.query(sql, [1, lastId, position]);
+                    ret = true;
+                }
+            }
+
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async RemDevice(id: number): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "DELETE FROM dashboard_devices "
+            sql += "WHERE deviceid = $1;"
+            await connection.query(sql, [id]);
+            sql = "DELETE FROM devices "
+            sql += "WHERE id = $1;"
+            await connection.query(sql, [id]);
             ret = true;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async GetDevices() {
+        var rows: DeviceModel[] = [];
+        try {
+            var connection = await this.getConnection();
+            var res
+            if (res = await connection.query("SELECT * FROM devices")) {
+                rows = res.rows;
+            }
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return rows;
+    }
+
+    public async GetDashboards() {
+        var rows: DashboardModel[] = [];
+        try {
+            var connection = await this.getConnection();
+            var res
+            if (res = await connection.query("SELECT * FROM dashboards ORDER BY id")) {
+                rows = res.rows;
+            }
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return rows;
+    }
+
+    public async DeleteDashboard(id: number): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "DELETE FROM dashboards "
+            sql += "WHERE id = $1;"
+            await connection.query(sql, [id]);
+            ret = true;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async NewDashboard(name: string): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+
+            var res
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM dashboards WHERE name = $1", [name])) {
+                if (res.rows[0].exists > 0) {
+                    ret = true;
+                }
+            }
+
+            if (!ret) {
+                let sql: string = "INSERT INTO dashboards ("
+                sql += "Name) "
+                sql += "VALUES ($1);"
+                await connection.query(sql, [name]);
+                ret = true;
+            }
+
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async EditDashboard(id: number, name: string): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+
+            var res
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM dashboards WHERE name = $1", [name])) {
+                if (res.rows[0].exists > 0) {
+                    ret = true;
+                }
+            }
+
+            if (!ret) {
+                let sql: string = "UPDATE dashboards SET "
+                sql += "Name = ($1) "
+                sql += "WHERE id = ($2);"
+                await connection.query(sql, [name, id]);
+                ret = true;
+            }
+
         }
         catch (err) {
             console.error(err);
@@ -156,10 +322,18 @@ class Postgres {
         var token = [];
         try {
             var connection = await this.getConnection();
-            await connection.query("DELETE FROM Tokens WHERE userid = ($1)", [userID]);
-            var res = await connection.query("INSERT INTO Tokens (userid) VALUES ($1) RETURNING token", [userID]);
+            //await connection.query("DELETE FROM Tokens WHERE userid = ($1)", [userID]);
+            let res: any;
+            res = await connection.query("SELECT token FROM Tokens WHERE userid = ($1) AND expire > now()", [userID]);
             if (res.rows.length > 0) {
                 token = res.rows[0].token;
+                await connection.query("UPDATE Tokens SET expire = DEFAULT WHERE token = ($1)", [token]);
+            }
+            else {
+                res = await connection.query("INSERT INTO Tokens (userid) VALUES ($1) RETURNING token", [userID]);
+                if (res.rows.length > 0) {
+                    token = res.rows[0].token;
+                }
             }
         }
         catch (err) {

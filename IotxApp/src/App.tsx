@@ -4,10 +4,12 @@ import Navbar from './Components/navbar.tsx';
 import Home from './Pages/home.tsx';
 import Dashboard from './Pages/dashboard.tsx';
 import Testdb from './Pages/testdb.tsx';
-import Testmqtt from './Pages/testmqtt.tsx';
+import DeviceListMqttDB from './Pages/devicelistmqttdb.tsx';
 import Login from './Auth/login.tsx';
 import Logout from './Auth/logout.tsx';
 import Register from './Auth/register.tsx';
+import Dashboards from './Pages/dashboards.tsx';
+import Profile from './Pages/profile.tsx';
 
 function App() {
 
@@ -19,9 +21,11 @@ function App() {
       <Routes>
         <Route path="/" element={<Home />} />
         <Route path="/dashboard" element={auth ? <Dashboard /> : <Navigate to='/login' />} />
+        <Route path="/dashboards" element={auth ? <Dashboards /> : <Navigate to='/dashboards' />} />
         <Route path="/testdb" element={auth ? <Testdb /> : <Navigate to='/login' />} />
-        <Route path="/testmqtt" element={auth ? <Testmqtt /> : <Navigate to='/login' />} />
+        <Route path="/devices" element={auth ? <DeviceListMqttDB /> : <Navigate to='/login' />} />
         <Route path="/login" element={<Login />} />
+        <Route path="/profile" element={<Profile />} />
         <Route path="/logout" element={<Logout />} />
         <Route path="/register" element={<Register />} />
       </Routes>

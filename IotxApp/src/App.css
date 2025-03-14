@@ -21,6 +21,44 @@
 }
 .row.table-foot{color: #fff ; background: #111111; padding: 1rem; font-weight: 500; text-transform: uppercase;}
 
+.tableContainer {
+  max-width: 1100px;
+  margin: auto  ;
+  overflow-x: auto;
+}
+
+.iotx-table {
+  border-radius: 10px;
+  background: #fff ; 
+  overflow: hidden;
+  width: 100%;
+}
+
+.iotx-table thead {
+  color: #fff ; background: #111111; 
+}
+
+.iotx-table th {
+  padding: 1rem; font-weight: 900;
+  vertical-align: middle;
+  color: #ffffff;
+}
+
+.iotx-table td {
+  padding: 1rem;
+  vertical-align: middle;
+  color: #111111;
+}
+
+.iotx-table tbody tr:hover {
+  background-color: #a0a0a0;
+  color: #111111;
+}
+
+.iotx-table tr:nth-child(even) {
+  background-color: #c0c0c0;
+}
+
 .navbar-dark, .navbar[data-bs-theme=dark] {
   --bs-navbar-color: rgba(255, 255, 255, 0.55);
   --bs-navbar-hover-color: rgba(255, 255, 255, 0.75);
