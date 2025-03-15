@@ -104,7 +104,9 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
             min: 0, // default value
             max: 100, // default value
             title: '', // default value
-            description: '' // default value
+            description: '', // default value
+            position: 0, // default value
+            dashboard_device_id: 0 // default value
           });
           newDeviceList.push(newDevice);
           console.log(newDevice);

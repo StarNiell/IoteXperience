@@ -1,5 +1,5 @@
 export class DeviceModel {
-  id: number = 0;;
+  id: number = 0;
   topic: string = "";
   device_id: string = "";
   timestamp: string = "";
@@ -13,11 +13,14 @@ export class DeviceModel {
   max: number = 0;
   title: string = "";
   description: string = "";
+  position: number = 0;
+  dashboard_device_id: number = 0;
 
   constructor(obj: {
-    id: number; topic: string; device_id: string; timestamp: string, type: string;
+    id: number, topic: string; device_id: string; timestamp: string, type: string;
     value: number; unit: string, subscription: string, status: string;
-    step: number, min: number, max: number, title: string, description: string
+    step: number, min: number, max: number, title: string, description: string;
+    position: number; dashboard_device_id: number;
   }) {
     this.id = obj.id;
     this.topic = obj.topic;
@@ -33,5 +36,7 @@ export class DeviceModel {
     this.max = obj.max;
     this.title = obj.title;
     this.description = obj.description;
+    this.position = obj.position;
+    this.dashboard_device_id = obj.dashboard_device_id;
   }
 }

@@ -121,7 +121,7 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                                 </button>
                                             ) : (
                                                 <button onClick={() => handleRemDevice(device)} className='btn btn-danger'>
-                                                    Rem
+                                                    Remove
                                                 </button>
                                             )}
                                         </td>

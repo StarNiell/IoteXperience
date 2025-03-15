@@ -1,55 +1,73 @@
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
+import { useAuth } from '../Auth/auth.tsx';
+import ApiCalls from '../Components/apicalls.tsx';
+import config from '../config/config.ts';
+import Notification from '../Components/notification.tsx';
+import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
 import { Container, Row, Col } from 'react-bootstrap';
-import { useEffect, useState } from 'react';
+import Device from '../Components/devices/device.tsx';
 import { useMqtt } from '../Components/mqtt.tsx';
-import TempViewUI from '../Components/devices/UI/tempview.tsx';
-import SwitchViewUI from '../Components/devices/UI/switchview.tsx';
-import SimpleCanvas from '../Components/devices/UI/simplecanvas.tsx';
+import { DeviceModel } from '../Components/devices/models/deviceModel.tsx';
 
-function Dashboard() {
-  const { deviceList } = useMqtt();
-  const [temp, setTemp] = useState(0);
-  const [stateSwitch, setStateSwitch] = useState(0);
-  const [stateButton, setStateButton] = useState(0);
+const Dashboard: React.FC = () => {
+    const { dashboardId } = useParams<{ dashboardId: string }>();
+    const { setAuth, setUser, user } = useAuth();
+    const { deviceList } = useMqtt();
+    const [dashboard, setDashboard] = useState<DashboardModel | null>(null);
+    const [showError, setShowError] = useState(false);
+    const [errorMessage, setErrorMessage] = useState('');
 
-  useEffect(() => {
-    const item1 = deviceList.find(dev => dev.topic === "iotx/out/sensor-001");
-    if (item1) {
-      setTemp(item1.value);
-    }
+    useEffect(() => {
+        fetchDashboard();
+    }, [dashboardId]);
 
-    const item2 = deviceList.find(dev => dev.topic === "iotx/out/switch-001");
-    if (item2) {
-      setStateSwitch(item2.value);
-    }
+    useEffect(() => {
+        if (dashboard) {
+            const mergedDevices = mergeDevices(dashboard.devices, deviceList);
+            setDashboard({ ...dashboard, devices: mergedDevices });
+        }
+    }, [deviceList]);
 
-    const item3 = deviceList.find(dev => dev.topic === "iotx/out/button-001");
-    if (item3) {
-      setStateButton(item3.value);
-    }
-  }, [deviceList]);
+    const fetchDashboard = async () => {
+        const token = user?.data?.Token;
+        var id = parseInt(dashboardId || '0');
+        const data = await ApiCalls({ token, id }, `${config.wsDatabaseUrl}/getdashboard`, "get", setAuth, setUser);
+        if (data?.error) {
+            console.log(data.error.message);
+            setErrorMessage(data.error.message);
+            setShowError(true);
+        } else {
+            // Esegui il merge delle device
+            const mergedDevices = mergeDevices(data.devices, deviceList);
+            setDashboard({ ...data, devices: mergedDevices });
+        }
+    };
 
-  return (
-    <>
-      <center className='p-3'><h1>Dashboard</h1></center>
-      <Container className="fluid">
-        <Row>
-          <Col lg={3}>
-            <TempViewUI caption="Temperature Test" value={temp} />
-          </Col>
-          <Col lg={3}>
-            <SwitchViewUI caption="Switch Test" device_id="switch-001" value={stateSwitch} />
-          </Col>
-          <Col lg={3}>
-            <SimpleCanvas temp={temp} caption={"Gauge Temp Test"} minVal={0} maxVal={50} rangeValues={[50, 30, 25, 17, 15]} rangeColors={['red', 'orange', 'green', 'orange', '#0d6efd']} />
-          </Col>
-          <Col lg={3}>
-            <SwitchViewUI caption="Button Test" device_id="button-001" value={stateButton} />
-          </Col>
-        </Row>
-      </Container>
-    </>
-  );
-}
+    const mergeDevices = (apiDevices: DeviceModel[], mqttDevices: DeviceModel[]) => {
+        return apiDevices.map(apiDevice => {
+            const mqttDevice = mqttDevices.find(mqttDevice => mqttDevice.device_id === apiDevice.device_id);
+            return mqttDevice ? { ...apiDevice, ...mqttDevice } : apiDevice;
+        });
+    };
+
+    return (
+        <>
+            <center className='p-3'><h1>Dashboard: {dashboard?.name}</h1></center>
+            <Container className="fluid">
+                <Row>
+                    {dashboard?.devices.map((device) => (
+                        <Col lg="3" key={device.device_id}>
+                            <Device device={device} />
+                        </Col>
+                    ))}
+                </Row>
+                <div>
+                    <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
+                </div>
+            </Container>
+        </>
+    );
+};
 
 export default Dashboard;
-

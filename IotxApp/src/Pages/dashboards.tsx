@@ -4,6 +4,8 @@ import Notification from '../Components/notification.tsx'; // Import the Notific
 import ApiCalls from '../Components/apicalls.tsx';
 import { useAuth } from '../Auth/auth.tsx';
 import config from '../config/config.ts'; // Import the configuration
+import { useNavigate } from 'react-router-dom';
+
 
 interface Dashboard {
     id: number;
@@ -18,6 +20,7 @@ const Dashboards: React.FC = () => {
     const [currentDashboard, setCurrentDashboard] = useState<Dashboard | null>(null);
     const [newDashboardName, setNewDashboardName] = useState('');
     const { setAuth, setUser, user } = useAuth();
+    const navigate = useNavigate();
 
     useEffect(() => {
         fetchDashboards();
@@ -42,10 +45,8 @@ const Dashboards: React.FC = () => {
         setShowModal(true);
     };
 
-    const handleEditDashboard = (dashboard: Dashboard) => {
-        setCurrentDashboard(dashboard);
-        setNewDashboardName(dashboard.name);
-        setShowModal(true);
+    const handleDevicesDashboard = (dashboard: Dashboard) => {
+        navigate(`/dashboards/${dashboard.id}`);
     };
 
     const handleDeleteDashboard = async (dashboard: Dashboard) => {
@@ -59,6 +60,12 @@ const Dashboards: React.FC = () => {
         } else {
             fetchDashboards();
         }
+    };
+
+    const handleEditDashboard = (dashboard: Dashboard) => {
+        setCurrentDashboard(dashboard);
+        setNewDashboardName(dashboard.name);
+        setShowModal(true);
     };
 
     const handleSaveDashboard = async () => {
@@ -99,8 +106,8 @@ const Dashboards: React.FC = () => {
                     </Col>
                 </Row>
                 <Row>
-                    <Col>
-                        <Table bsPrefix="iotx-table" striped bordered hover variant="dark" responsive>
+                    <Col className='tableContainer'>
+                        <Table bsPrefix="iotx-table" responsive>
                             <thead>
                                 <tr>
                                     <th>Name</th>
@@ -111,9 +118,10 @@ const Dashboards: React.FC = () => {
                                 {dashboards.map((dashboard) => (
                                     <tr key={dashboard.id}>
                                         <td style={{width: "80%"}}>{dashboard.name}</td>
-                                        <td style={{minWidth: "200px"}}>
+                                        <td style={{minWidth: "300px"}}>
                                             <Button variant="warning" onClick={() => handleEditDashboard(dashboard)}>Edit</Button>{' '}
-                                            {dashboard.id > 1 && <Button variant="danger" onClick={() => handleDeleteDashboard(dashboard)}>Delete</Button>}
+                                            <Button variant="info" onClick={() => handleDevicesDashboard(dashboard)}>Widgets</Button>{' '}
+                                            {dashboard.id > 1 && <Button variant="danger" disabled={dashboard.id === 1} onClick={() => handleDeleteDashboard(dashboard)}>Delete</Button>}
                                         </td>
                                     </tr>
                                 ))}
@@ -128,7 +136,7 @@ const Dashboards: React.FC = () => {
 
             <Modal show={showModal} onHide={() => setShowModal(false)}>
                 <Modal.Header closeButton>
-                    <Modal.Title>{currentDashboard ? 'Edit Dashboard' : 'New Dashboard'}</Modal.Title>
+                    <Modal.Title style={{color: "#111111"}}>{currentDashboard ? 'Edit Dashboard' : 'New Dashboard'}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form>

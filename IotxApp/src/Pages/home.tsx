@@ -19,7 +19,7 @@ function Home() {
                 </a>
             </div>
             <div className="d-flex justify-content-center mt-5">
-                <h1>Internet of things eXperience</h1>
+                <center><h1>Internet of things eXperience</h1></center>
             </div>
             <div className="d-flex justify-content-center mt-5">
                 <button className='btn btn-primary' onClick={() => navigate("/dashboard")}>

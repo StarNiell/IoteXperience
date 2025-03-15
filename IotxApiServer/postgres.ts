@@ -206,6 +206,78 @@ class Postgres {
         return rows;
     }
 
+    public async GetDashboard(id: number) {
+        var rows: any;
+        var result: DashboardModel;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "";
+            sql = "SELECT ";
+            sql += "	" + id.toString() + " as dashboard_id, ";
+            sql += "	(SELECT Name FROM dashboards WHERE id = " + id.toString() + ") as dashboard_name, ";
+            sql += "	COALESCE((SELECT id FROM dashboard_devices WHERE dashboardid = " + id.toString() + " AND deviceid = dev.id), 0) as dashboard_devices_id, ";
+            sql += "	COALESCE((SELECT Position FROM dashboard_devices WHERE dashboardid = " + id.toString() + " AND deviceid = dev.id), 999999) as dashboard_devices_position, ";
+            sql += "	dev.id as devid, ";
+            sql += "	dev.device_id, ";
+            sql += "	dev.device_title, ";
+            sql += "	dev.device_description, ";
+            sql += "	dev.device_topic, ";
+            sql += "	dev.device_subscription, ";
+            sql += "	dev.device_type, ";
+            sql += "	dev.device_value, ";
+            sql += "	dev.device_step, ";
+            sql += "	dev.device_min, ";
+            sql += "	dev.device_max, ";
+            sql += "	dev.device_unit, ";
+            sql += "	dev.device_status, ";
+            sql += "	dev.device_timestamp ";
+            sql += "FROM ";
+            sql += "	devices dev ";
+            sql += "ORDER BY dashboard_devices_position; ";
+            var res
+            if (res = await connection.query(sql)) {
+                rows = res.rows;
+                rows.forEach((row) => {
+                    if (result == null) {
+                        result = new DashboardModel({
+                            id: row.dashboard_id,
+                            name: row.dashboard_name,
+                            devices: []
+                        });
+                    }
+                    result.devices.push(new DeviceModel({
+                        id: row.devid,
+                        topic: row.device_topic,
+                        device_id: row.device_id,
+                        timestamp: row.device_timestamp,
+                        type: row.device_type,
+                        value: row.device_value,
+                        unit: row.device_unit,
+                        subscription: row.device_subscription,
+                        status: row.device_status,
+                        step: row.device_step,
+                        min: row.device_min,
+                        max: row.device_max,
+                        title: row.device_title,
+                        description: row.device_description,
+                        position: row.dashboard_devices_position,
+                        dashboard_device_id: row.dashboard_devices_id
+                    }));
+
+                });
+            }
+
+
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return result;
+    }
+
     public async DeleteDashboard(id: number): Promise<boolean> {
         var ret = false;
         try {
@@ -359,6 +431,82 @@ class Postgres {
         catch (err) {
             console.error(err);
             ret = 0;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async AddDashboardDevice(dashboard_id: number, device_id: number): Promise<boolean> {
+        let ret: boolean = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "WITH LP AS ( ";
+            sql += "    SELECT MAX(Position) as LastPosition FROM dashboard_devices ";
+            sql += "    WHERE dashboardid = $1 ";
+            sql += ") ";
+            sql += "INSERT INTO dashboard_devices (dashboardid, deviceid, position) VALUES ( ";
+            sql += "$1, $2, COALESCE((SELECT LastPosition + 1 FROM LP), 1)); ";
+            await connection.query(sql, [dashboard_id, device_id]);
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async RemoveDashboardDevice(dashboard_id: number, dashboard_device_id: number): Promise<boolean> {
+        let ret: boolean = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "WITH Deleted AS ( ";
+            sql += "    DELETE FROM dashboard_devices ";
+            sql += "    WHERE id = " + dashboard_device_id.toString() + " ";
+            sql += "    RETURNING Position ";
+            sql += ") \n";
+            sql += "UPDATE dashboard_devices ";
+            sql += "SET Position = Position - 1 ";
+            sql += "WHERE  ";
+            sql += "	dashboardid = " + dashboard_id.toString() + " ";
+            sql += "	AND Position > (SELECT Position FROM Deleted); ";
+            console.log(sql);
+            var res = await connection.query(sql);
+            console.log(res);
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    private async DeviceSwapPosition(dashboard_id: number, pos1: number, pos2: number): Promise<boolean> {
+        let ret: boolean = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "WITH Updated AS (";
+            sql += "SELECT id, Position, ";
+            sql += "    CASE ";
+            sql += "        WHEN Position = $1 THEN $2 ";
+            sql += "        WHEN $1 < $2 AND Position > $1 AND Position <= $2 THEN Position - 1 ";
+            sql += "        WHEN $1 > $2 AND Position >= $2 AND Position < $1 THEN Position + 1 ";
+            sql += "    ELSE Position ";
+            sql += "    END AS NewPosition ";
+            sql += "FROM dashboard_devices WHERE dashboard_id $3) ";
+            sql += "UPDATE dashboard_devices ";
+            sql += "SET Position = Updated.NewPosition ";
+            sql += "FROM Updated ";
+            sql += "WHERE dashboard_devices.id = Updated.id;";
+            await connection.query(sql, [pos1, pos2, dashboard_id]);
+        }
+        catch (err) {
+            console.error(err);
         }
         finally {
             connection.end();

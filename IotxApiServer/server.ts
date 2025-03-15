@@ -239,6 +239,75 @@ class Server {
             }
         });
 
+
+        this.app.get('/getdashboard', async (req, res) => {
+            try {
+                console.log(req.query);
+                var token = req.query.token as string;
+                var UserID = await this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return
+                }
+                else {
+                    let id: number = parseInt(req.query.id as string, 10);
+                    let result = await this.db.GetDashboard(id);
+                    res.json(result);
+                }
+            }
+            catch (error) {
+                console.log(error?.message)
+                res.sendStatus(500);
+            }
+        });
+
+        this.app.post('/adddashboarddevice', async (req, res) => {
+            try {
+                console.log(req.body.params);
+                var token = req.body.params.token as string;
+                var UserID = await this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return
+                }
+                else {
+                    let id: number = parseInt(req.body.params.dashboardid as string, 10);
+                    let deviceid: number = parseInt(req.body.params.deviceid as string, 10);
+                    let result = await this.db.AddDashboardDevice(id, deviceid);
+                    res.json(result);
+                }
+            }
+            catch (error) {
+                console.log(error?.message)
+                res.sendStatus(500);
+            }
+        });
+
+        this.app.post('/remdashboarddevice', async (req, res) => {
+            try {
+                console.log(req.body.params);
+                var token = req.body.params.token as string;
+                var UserID = await this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return
+                }
+                else {
+                    let dashboardid: number = parseInt(req.body.params.dashboardid as string, 10);
+                    let dashboarddeviceid: number = parseInt(req.body.params.dashboarddeviceid as string, 10);
+                    let result = await this.db.RemoveDashboardDevice(dashboardid, dashboarddeviceid);
+                    res.json(result);
+                }
+            }
+            catch (error) {
+                console.log(error?.message)
+                res.sendStatus(500);
+            }
+        });
+
         // Test only
         this.app.post('/insert', async (req, res) => {
             var key = req.body.key;
