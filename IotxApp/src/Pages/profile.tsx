@@ -1,11 +1,10 @@
-import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../Auth/auth.tsx';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
 
 function Profile() {
     const { auth, user } = useAuth();
-    const navigate = useNavigate();
+    
 
     let username: string = user?.data?.User?.Username;
     return (
