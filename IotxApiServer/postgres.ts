@@ -1,5 +1,6 @@
 import { DeviceModel } from "./deviceModel";
 import { DashboardModel } from "./dashboardModel";
+import { UserDashboardModel } from "./userDashboardModel";
 
 class Postgres {
     private host: string;
@@ -278,6 +279,78 @@ class Postgres {
         return result;
     }
 
+    public async GetUsersDashboard(id: number) {
+        var rows: any;
+        var result: UserDashboardModel[] = [];
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "";
+            sql = "SELECT  ";
+            sql += "    COALESCE((SELECT id FROM user_dashboards WHERE dashboardid=$1 AND userid = u.id), 0) as id, ";
+            sql += "    u.id as userid, ";
+            sql += "    u.username, ";
+            sql += "    $1 as dashboardid, ";
+            sql += "    (SELECT defaultdb FROM user_dashboards WHERE dashboardid=$1 AND userid = u.id) as defaultdb ";
+            sql += "from users u ";
+            sql += "ORDER BY u.username; ";
+            var res
+            if (res = await connection.query(sql, [id])) {
+                rows = res.rows;
+                rows.forEach((row) => {
+                    result.push(new UserDashboardModel({
+                        id: row.id,
+                        userId: row.userid,
+                        userName: row.username,
+                        dashboardId: row.dashboardid,
+                        isDefault: row.defaultdb??false,
+                        hasAccess: (row.id > 0)
+                    }));
+                });
+            }
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return result;
+    }
+
+    public async SaveUsersDashboard(usersDashboard: UserDashboardModel[]): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "";
+
+            for (const element of usersDashboard) {
+                if (element.id == 0 && element.hasAccess) {
+                    sql = "INSERT INTO user_dashboards (userid, dashboardid, defaultdb) VALUES ($1, $2, $3);";
+                    await connection.query(sql, [element.userId, element.dashboardId, element.isDefault??false]);
+                }
+                else if (element.id > 0 && element.hasAccess && element.isDefault) {
+                    sql = "UPDATE user_dashboards SET defaultdb = false WHERE dashboardid = $1;";
+                    await connection.query(sql, [element.dashboardId]);  
+                    sql = "UPDATE user_dashboards SET defaultdb = true WHERE id = $1;";
+                    await connection.query(sql, [element.id]);  
+                }
+                else if (element.id > 0 && !element.hasAccess) {
+                    sql = "DELETE FROM user_dashboards WHERE id = $1;";
+                    await connection.query(sql, [element.id]);  
+                }
+            }
+            ret = true;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
     public async DeleteDashboard(id: number): Promise<boolean> {
         var ret = false;
         try {
@@ -359,11 +432,41 @@ class Postgres {
         return ret;
     }
 
+    public async SaveDevice(device: DeviceModel): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+
+            let sql: string = "UPDATE devices SET "
+            sql += "device_title = ($2), "
+            sql += "device_description = ($3) "
+            sql += "WHERE id = ($1);"
+            await connection.query(sql, [device.id, device.title, device.description]);
+            ret = true;
+
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
     public async DoLogin(username: string, password: string): Promise<any> {
         var ret = {};
         try {
             var connection = await this.getConnection();
-            var res = await connection.query("SELECT ID, Username, Password, Email FROM Users WHERE (username = $1 OR Email = $1) AND password = $2", [username, password]);
+            let sql: string = "";
+            sql = "SELECT u.id, u.username, u.email, ud.dashboardid, ud.defaultdb ";
+            sql += "FROM users u ";
+            sql += "LEFT JOIN user_dashboards ud ON u.id = ud.userid ";
+            sql += "WHERE (u.username = $1 OR u.email = $1) AND u.password = $2 ";
+            sql += "ORDER BY ud.defaultdb DESC ";
+            sql += "LIMIT 1; ";
+            var res = await connection.query(sql, [username, password]);
             if (res.rows.length > 0) {
                 var Token = await this.GetNewToken(res.rows[0].id);
                 ret = {
@@ -374,7 +477,8 @@ class Postgres {
                         {
                             "ID": res.rows[0].id,
                             "Username": res.rows[0].username,
-                            "Email": res.rows[0].email
+                            "Email": res.rows[0].email,
+                            "dashboardid": res.rows[0].dashboardid
                         }
                     }
                 };

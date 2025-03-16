@@ -2,6 +2,7 @@ import express from 'express';
 import { Postgres } from './postgres';
 import { DeviceModel } from './deviceModel';
 import { DashboardModel } from './dashboardModel';
+import { UserDashboardModel } from './userDashboardModel';
 
 class Server {
     private app: express.Application;
@@ -305,6 +306,66 @@ class Server {
             catch (error) {
                 console.log(error?.message)
                 res.sendStatus(500);
+            }
+        });
+
+        this.app.post('/savedevice', async (req, res) => {
+            console.log(req.body.params);
+            var token = req.body.params.token as string;
+            var UserID = await this.db.GetUserIDByToken(token);
+            console.log(UserID);
+            if (UserID <= 0) {
+                res.json({ "forbidden": "Session expired or invalid token" });
+                return
+            }
+            else {
+                var device = req.body.params.device as DeviceModel;
+                let result = await this.db.SaveDevice(device);
+                if (result) {
+                    console.log('Updated');
+                    res.sendStatus(200);
+                }
+            }
+        });
+
+        this.app.get('/getusersdashboard', async (req, res) => {
+            try {
+                console.log(req.query);
+                var token = req.query.token as string;
+                var UserID = await this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return
+                }
+                else {
+                    let id: number = parseInt(req.query.id as string, 10);
+                    let result = await this.db.GetUsersDashboard(id);
+                    res.json(result);
+                }
+            }
+            catch (error) {
+                console.log(error?.message)
+                res.sendStatus(500);
+            }
+        });
+
+        this.app.post('/saveusersdashboard', async (req, res) => {
+            console.log(req.body.params);
+            var token = req.body.params.token as string;
+            var UserID = await this.db.GetUserIDByToken(token);
+            console.log(UserID);
+            if (UserID <= 0) {
+                res.json({ "forbidden": "Session expired or invalid token" });
+                return
+            }
+            else {
+                var usersDashboard = req.body.params.users as UserDashboardModel[];
+                let result = await this.db.SaveUsersDashboard(usersDashboard);
+                if (result) {
+                    console.log('Updated');
+                    res.sendStatus(200);
+                }
             }
         });
 

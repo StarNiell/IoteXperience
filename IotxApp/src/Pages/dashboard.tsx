@@ -5,18 +5,18 @@ import ApiCalls from '../Components/apicalls.tsx';
 import config from '../config/config.ts';
 import Notification from '../Components/notification.tsx';
 import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
-import { Container, Row, Col, Nav } from 'react-bootstrap';
+import { Container, Row, Col } from 'react-bootstrap';
 import Device from '../Components/devices/device.tsx';
 import { useMqtt } from '../Components/mqtt.tsx';
 import { DeviceModel } from '../Components/devices/models/deviceModel.tsx';
-import { Link, useNavigate } from 'react-router-dom'
-
+import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
     const { dashboardId } = useParams<{ dashboardId: string }>();
     const { setAuth, setUser, user } = useAuth();
     const { deviceList } = useMqtt();
     const [dashboard, setDashboard] = useState<DashboardModel | null>(null);
+    const [mergedDevices, setMergedDevices] = useState<DeviceModel[]>([]);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
@@ -34,10 +34,17 @@ const Dashboard: React.FC = () => {
 
     useEffect(() => {
         if (dashboard) {
-            const mergedDevices = mergeDevices(dashboard.devices, deviceList);
-            setDashboard({ ...dashboard, devices: mergedDevices });
+            const merged = mergeDevices(dashboard.devices, deviceList);
+            merged.forEach(device => {
+                const apiDevice = dashboard.devices.find((apiDevice: DeviceModel) => apiDevice.device_id === device.device_id);
+                device.dashboard_device_id = apiDevice?.dashboard_device_id || 0;
+                device.id = apiDevice?.id || 0;
+                device.title = apiDevice?.title || '';
+                device.description = apiDevice?.description || '';
+            });
+            setMergedDevices(merged);
         }
-    }, [deviceList]);
+    }, [deviceList, dashboard]);
 
     const fetchDashboard = async () => {
         const token = user?.data?.Token;
@@ -49,22 +56,26 @@ const Dashboard: React.FC = () => {
                 setErrorMessage(data.error.message);
                 setShowError(true);
             } else {
-                var mergedDevices = mergeDevices(data.devices, deviceList);
-                //Patch to add dashboard_device_id to devices
-                mergedDevices.forEach(device => {
-                    var dashboardDeviceId = data.devices.find((apiDevice: DeviceModel) => apiDevice.device_id === device.device_id)?.dashboard_device_id;
-                    device.dashboard_device_id = dashboardDeviceId;
+                const merged = mergeDevices(data.devices, deviceList);
+                // Patch to add dashboard_device_id to devices
+                merged.forEach(device => {
+                    const apiDevice = data.devices.find((apiDevice: DeviceModel) => apiDevice.device_id === device.device_id);
+                    device.dashboard_device_id = apiDevice?.dashboard_device_id || 0;
+                    device.id = apiDevice?.id || 0;
+                    device.title = apiDevice?.title || '';
+                    device.description = apiDevice?.description || '';
                 });
-                //Workaround when refresh page
+                // Workaround when refresh page
                 iFlag++;
                 if (iFlag > 1) {
                     navigate(`/dashboard/0`);
-                    await delay(100)
+                    await delay(100);
                     navigate(`/dashboard/${dashboardId}`);
-                }
-                else {
-                    //Take only devices that are in the dashboard
-                    setDashboard({ ...data, devices: mergedDevices.filter(device => device.dashboard_device_id !== 0) });
+                } else {
+                    // Take only devices that are in the dashboard
+                    var filtered = merged.filter(device => device.dashboard_device_id !== 0);
+                    setDashboard({ ...data, devices: filtered });
+                    setMergedDevices(filtered);
                 }
             }
         }
@@ -89,10 +100,10 @@ const Dashboard: React.FC = () => {
         <>
             <center className='p-3'><h1>Dashboard: {dashboard?.name}</h1></center>
             <Container className="fluid">
-                {chunkArray(dashboard?.devices || [], 4).map((deviceChunk, index) => (
+                {chunkArray(mergedDevices, 4).map((deviceChunk, index) => (
                     <Row key={index}>
                         {deviceChunk.map((device) => (
-                            <Col lg="3" key={device.device_id}>
+                            <Col style={{paddingTop: "10px"}} lg="3" key={device.device_id}>
                                 <Device device={device} />
                             </Col>
                         ))}

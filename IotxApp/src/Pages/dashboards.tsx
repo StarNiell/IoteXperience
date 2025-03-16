@@ -5,20 +5,18 @@ import ApiCalls from '../Components/apicalls.tsx';
 import { useAuth } from '../Auth/auth.tsx';
 import config from '../config/config.ts'; // Import the configuration
 import { useNavigate } from 'react-router-dom';
-
-
-interface Dashboard {
-    id: number;
-    name: string;
-}
+import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
+import { UserDashboardModel } from '../Components/devices/models/userDashboardModel.tsx';
 
 const Dashboards: React.FC = () => {
-    const [dashboards, setDashboards] = useState<Dashboard[]>([]);
+    const [dashboards, setDashboards] = useState<DashboardModel[]>([]);
     const [showModal, setShowModal] = useState(false);
+    const [showUserModal, setShowUserModal] = useState(false);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-    const [currentDashboard, setCurrentDashboard] = useState<Dashboard | null>(null);
+    const [currentDashboard, setCurrentDashboard] = useState<DashboardModel | null>(null);
     const [newDashboardName, setNewDashboardName] = useState('');
+    const [userDashboardList, setUserDashboardList] = useState<UserDashboardModel[]>([]);
     const { setAuth, setUser, user } = useAuth();
     const navigate = useNavigate();
 
@@ -45,11 +43,11 @@ const Dashboards: React.FC = () => {
         setShowModal(true);
     };
 
-    const handleDevicesDashboard = (dashboard: Dashboard) => {
+    const handleDevicesDashboard = (dashboard: DashboardModel) => {
         navigate(`/dashboards/${dashboard.id}`);
     };
 
-    const handleDeleteDashboard = async (dashboard: Dashboard) => {
+    const handleDeleteDashboard = async (dashboard: DashboardModel) => {
         const token = user?.data?.Token;
         const data = await ApiCalls({ token, id: dashboard.id }, `${config.wsDatabaseUrl}/deletedashboard/`, "post", setAuth, setUser);
         if (data?.error) {
@@ -62,7 +60,7 @@ const Dashboards: React.FC = () => {
         }
     };
 
-    const handleEditDashboard = (dashboard: Dashboard) => {
+    const handleEditDashboard = (dashboard: DashboardModel) => {
         setCurrentDashboard(dashboard);
         setNewDashboardName(dashboard.name);
         setShowModal(true);
@@ -96,6 +94,33 @@ const Dashboards: React.FC = () => {
         setShowModal(false);
     };
 
+    const handleUsersDashboard = async (dashboard: DashboardModel) => {
+        const token = user?.data?.Token;
+        const data = await ApiCalls({ token, id: dashboard.id }, `${config.wsDatabaseUrl}/getusersdashboard/`, "get", setAuth, setUser);
+        if (data?.error) {
+            console.log(data.error.message);
+            setErrorMessage(data.error.message);
+            setShowError(true);
+        } else {
+            setUserDashboardList(data);
+            setCurrentDashboard(dashboard);
+            setShowUserModal(true);
+        }
+    };
+
+    const handleSaveUsersDashboard = async () => {
+        const token = user?.data?.Token;
+        const data = await ApiCalls({ token, users: userDashboardList, dashboardId: currentDashboard?.id }, `${config.wsDatabaseUrl}/saveusersdashboard/`, "post", setAuth, setUser);
+        if (data?.error) {
+            console.log(data.error.message);
+            setErrorMessage(data.error.message);
+            setShowError(true);
+        } else {
+            setShowUserModal(false);
+        }
+    };
+
+
     return (
         <>
             <center className='p-3'><h1>Dashboards</h1></center>
@@ -118,9 +143,10 @@ const Dashboards: React.FC = () => {
                                 {dashboards.map((dashboard) => (
                                     <tr key={dashboard.id}>
                                         <td style={{width: "80%"}}>{dashboard.name}</td>
-                                        <td style={{minWidth: "300px"}}>
+                                        <td style={{minWidth: "350px"}}>
                                             <Button variant="warning" onClick={() => handleEditDashboard(dashboard)}>Edit</Button>{' '}
                                             <Button variant="info" onClick={() => handleDevicesDashboard(dashboard)}>Widgets</Button>{' '}
+                                            <Button variant="secondary" onClick={() => handleUsersDashboard(dashboard)}>Users</Button>{' '}
                                             {dashboard.id > 1 && <Button variant="danger" disabled={dashboard.id === 1} onClick={() => handleDeleteDashboard(dashboard)}>Delete</Button>}
                                         </td>
                                     </tr>
@@ -134,9 +160,9 @@ const Dashboards: React.FC = () => {
                 </div>
             </div>
 
-            <Modal show={showModal} onHide={() => setShowModal(false)}>
+            <Modal style={{color: "#111111"}} show={showModal} onHide={() => setShowModal(false)}>
                 <Modal.Header closeButton>
-                    <Modal.Title style={{color: "#111111"}}>{currentDashboard ? 'Edit Dashboard' : 'New Dashboard'}</Modal.Title>
+                    <Modal.Title>{currentDashboard ? 'Edit Dashboard' : 'New Dashboard'}</Modal.Title>
                 </Modal.Header>
                 <Modal.Body>
                     <Form>
@@ -154,6 +180,54 @@ const Dashboards: React.FC = () => {
                 <Modal.Footer>
                     <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
                     <Button variant="primary" onClick={handleSaveDashboard}>Save</Button>
+                </Modal.Footer>
+            </Modal>
+
+            <Modal style={{color: "#111111"}} show={showUserModal} onHide={() => setShowUserModal(false)}>
+                <Modal.Header closeButton>
+                    <Modal.Title>Manage Users</Modal.Title>
+                </Modal.Header>
+                <Modal.Body>
+                    <Table responsive>
+                        <thead>
+                            <tr>
+                                <th>User</th>
+                                <th>Access</th>
+                                <th>Default</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {userDashboardList.map((user) => (
+                                <tr key={user.userId}>
+                                    <td>{user.userName}</td>
+                                    <td>
+                                        <Form.Check
+                                            type="checkbox"
+                                            checked={user.hasAccess}
+                                            onChange={(e) => {
+                                                const updatedList = userDashboardList.map(u => u.userId === user.userId ? { ...u, hasAccess: e.target.checked } : u);
+                                                setUserDashboardList(updatedList);
+                                            }}
+                                        />
+                                    </td>
+                                    <td>
+                                        <Form.Check
+                                            type="checkbox"
+                                            checked={user.isDefault}
+                                            onChange={(e) => {
+                                                const updatedList = userDashboardList.map(u => u.userId === user.userId ? { ...u, isDefault: e.target.checked } : u);
+                                                setUserDashboardList(updatedList);
+                                            }}
+                                        />
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </Table>
+                </Modal.Body>
+                <Modal.Footer>
+                    <Button variant="secondary" onClick={() => setShowUserModal(false)}>Close</Button>
+                    <Button variant="primary" onClick={handleSaveUsersDashboard}>Save</Button>
                 </Modal.Footer>
             </Modal>
         </>
