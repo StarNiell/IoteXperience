@@ -1,6 +1,7 @@
 import { DeviceModel } from "./deviceModel";
 import { DashboardModel } from "./dashboardModel";
 import { UserDashboardModel } from "./userDashboardModel";
+import { UserModel } from "./userModel";
 
 class Postgres {
     private host: string;
@@ -189,12 +190,12 @@ class Postgres {
         return rows;
     }
 
-    public async GetDashboards() {
+    public async GetDashboards(userid: number) {
         var rows: DashboardModel[] = [];
         try {
             var connection = await this.getConnection();
             var res
-            if (res = await connection.query("SELECT * FROM dashboards ORDER BY id")) {
+            if (res = await connection.query("SELECT d.* FROM dashboards d JOIN user_dashboards ud on d.id = ud.dashboardid where ud.userid = $1 ORDER BY id", [userid])) {
                 rows = res.rows;
             }
         }
@@ -302,7 +303,7 @@ class Postgres {
                         userId: row.userid,
                         userName: row.username,
                         dashboardId: row.dashboardid,
-                        isDefault: row.defaultdb??false,
+                        isDefault: row.defaultdb ?? false,
                         hasAccess: (row.id > 0)
                     }));
                 });
@@ -326,17 +327,17 @@ class Postgres {
             for (const element of usersDashboard) {
                 if (element.id == 0 && element.hasAccess) {
                     sql = "INSERT INTO user_dashboards (userid, dashboardid, defaultdb) VALUES ($1, $2, $3);";
-                    await connection.query(sql, [element.userId, element.dashboardId, element.isDefault??false]);
+                    await connection.query(sql, [element.userId, element.dashboardId, element.isDefault ?? false]);
                 }
                 else if (element.id > 0 && element.hasAccess && element.isDefault) {
                     sql = "UPDATE user_dashboards SET defaultdb = false WHERE dashboardid = $1;";
-                    await connection.query(sql, [element.dashboardId]);  
+                    await connection.query(sql, [element.dashboardId]);
                     sql = "UPDATE user_dashboards SET defaultdb = true WHERE id = $1;";
-                    await connection.query(sql, [element.id]);  
+                    await connection.query(sql, [element.id]);
                 }
                 else if (element.id > 0 && !element.hasAccess) {
                     sql = "DELETE FROM user_dashboards WHERE id = $1;";
-                    await connection.query(sql, [element.id]);  
+                    await connection.query(sql, [element.id]);
                 }
             }
             ret = true;
@@ -439,11 +440,151 @@ class Postgres {
 
             let sql: string = "UPDATE devices SET "
             sql += "device_title = ($2), "
-            sql += "device_description = ($3) "
+            sql += "device_description = ($3), "
+            sql += "device_min = ($4), "
+            sql += "device_max = ($5) "
             sql += "WHERE id = ($1);"
-            await connection.query(sql, [device.id, device.title, device.description]);
+            await connection.query(sql, [device.id, device.title, device.description, device.min, device.max]);
             ret = true;
 
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async GetUsers() {
+        var rows: DashboardModel[] = [];
+        try {
+            var connection = await this.getConnection();
+            var res
+            if (res = await connection.query("SELECT * FROM Users ORDER BY username")) {
+                rows = res.rows;
+            }
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return rows;
+    }
+
+    public async DeleteUser(id: number): Promise<boolean> {
+        var ret = false;
+        let sql: string = "";
+        try {
+            var connection = await this.getConnection();
+
+            sql = "DELETE FROM tokens "
+            sql += "WHERE userid = $1;"
+            await connection.query(sql, [id]);
+
+            sql = "DELETE FROM user_dashboards "
+            sql += "WHERE userid = $1;"
+            await connection.query(sql, [id]);
+
+            sql = "DELETE FROM users "
+            sql += "WHERE id = $1;"
+            await connection.query(sql, [id]);
+
+            ret = true;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async NewUser(user: UserModel): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+
+            var res
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM dashboards WHERE name = $1", [user.username])) {
+                if (res.rows[0].exists > 0) {
+                    ret = true;
+                }
+            }
+
+            if (!ret) {
+                let sql: string = "INSERT INTO users ("
+                sql += "username, "
+                sql += "password, "
+                sql += "email, "
+                sql += "admin) "
+                sql += "VALUES ($1, $2, $3, $4);"
+                await connection.query(sql, [user.username, user.password, user.email, user.admin]);
+                ret = true;
+            }
+
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async EditUser(user: UserModel): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+
+            var res
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM users WHERE username = $1", [user.username])) {
+                if (res.rows[0].exists > 0) {
+                    ret = true;
+                }
+            }
+
+            if (!ret) {
+                let sql: string = "UPDATE users SET "
+                sql += "username = ($1), "
+                sql += "password = ($2), "
+                sql += "email = ($3), "
+                sql += "admin = ($4) "
+                sql += "WHERE id = ($5);"
+                await connection.query(sql, [user.username, user.password, user.email, user.admin, user.id]);
+                ret = true;
+            }
+
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async ResetToken(id: number): Promise<boolean> {
+        var ret = false;
+        let sql: string = "";
+        try {
+            var connection = await this.getConnection();
+
+            sql = "DELETE FROM tokens "
+            sql += "WHERE userid = $1;"
+            await connection.query(sql, [id]);
+
+            ret = true;
         }
         catch (err) {
             console.error(err);
@@ -460,7 +601,7 @@ class Postgres {
         try {
             var connection = await this.getConnection();
             let sql: string = "";
-            sql = "SELECT u.id, u.username, u.email, ud.dashboardid, ud.defaultdb ";
+            sql = "SELECT u.id, u.username, u.email, ud.dashboardid, ud.defaultdb, u.admin ";
             sql += "FROM users u ";
             sql += "LEFT JOIN user_dashboards ud ON u.id = ud.userid ";
             sql += "WHERE (u.username = $1 OR u.email = $1) AND u.password = $2 ";
@@ -478,7 +619,8 @@ class Postgres {
                             "ID": res.rows[0].id,
                             "Username": res.rows[0].username,
                             "Email": res.rows[0].email,
-                            "dashboardid": res.rows[0].dashboardid
+                            "dashboardid": res.rows[0].dashboardid,
+                            "admin": res.rows[0].admin
                         }
                     }
                 };

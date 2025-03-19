@@ -9,28 +9,36 @@ import { Container, Row, Col } from 'react-bootstrap';
 import Device from '../Components/devices/device.tsx';
 import { useMqtt } from '../Components/mqtt.tsx';
 import { DeviceModel } from '../Components/devices/models/deviceModel.tsx';
-import { useNavigate } from 'react-router-dom';
+//import { useNavigate } from 'react-router-dom';
 
 const Dashboard: React.FC = () => {
     const { dashboardId } = useParams<{ dashboardId: string }>();
-    const { setAuth, setUser, user } = useAuth();
+    const { setAuth, setUser, user, dashboards } = useAuth();
     const { deviceList } = useMqtt();
     const [dashboard, setDashboard] = useState<DashboardModel | null>(null);
     const [mergedDevices, setMergedDevices] = useState<DeviceModel[]>([]);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-    const navigate = useNavigate();
+    //const navigate = useNavigate();
 
-    let iFlag = 0;
+    //let iFlag = 0;
 
+    var checkDashboard = dashboardId;
+
+    if (dashboards.filter(dashboard => dashboard.id === parseInt(checkDashboard || '0')).length === 0) {
+        checkDashboard =  user?.data?.User.dashboardid.toString();   
+    }
+    
+    /*
     const delay = async (ms: number) => {
         return new Promise((resolve) =>
             setTimeout(resolve, ms));
     };
+    */
 
     useEffect(() => {
         fetchDashboard();
-    }, [dashboardId]);
+    }, [checkDashboard]);
 
     useEffect(() => {
         if (dashboard) {
@@ -48,7 +56,7 @@ const Dashboard: React.FC = () => {
 
     const fetchDashboard = async () => {
         const token = user?.data?.Token;
-        var id = parseInt(dashboardId || '0');
+        const id = parseInt(checkDashboard || '0');
         if (id > 0) {
             const data = await ApiCalls({ token, id }, `${config.wsDatabaseUrl}/getdashboard`, "get", setAuth, setUser);
             if (data?.error) {
@@ -66,20 +74,24 @@ const Dashboard: React.FC = () => {
                     device.description = apiDevice?.description || '';
                 });
                 // Workaround when refresh page
+                /*
                 iFlag++;
                 if (iFlag > 1) {
                     navigate(`/dashboard/0`);
                     await delay(100);
                     navigate(`/dashboard/${dashboardId}`);
                 } else {
+                 */
                     // Take only devices that are in the dashboard
                     var filtered = merged.filter(device => device.dashboard_device_id !== 0);
                     setDashboard({ ...data, devices: filtered });
                     setMergedDevices(filtered);
-                }
+                //}
             }
         }
     };
+
+    
 
     const mergeDevices = (apiDevices: DeviceModel[], mqttDevices: DeviceModel[]) => {
         return apiDevices.map(apiDevice => {

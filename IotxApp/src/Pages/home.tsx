@@ -8,7 +8,7 @@ function Home() {
     const { auth, user } = useAuth();
     const navigate = useNavigate();
 
-    let username: string = user?.data?.User?.Username;
+    let username: string = user?.data?.User?.Username || 'Guest';
     return (
         <>
             <div style={{ height: '100px' }}></div>
@@ -21,11 +21,13 @@ function Home() {
             <div className="d-flex justify-content-center mt-5">
                 <center><h1>Internet of things eXperience</h1></center>
             </div>
+            {auth && (
             <div className="d-flex justify-content-center mt-5">
-                <button className='btn btn-primary' onClick={() => navigate(`/dashboard/${user.data.User.dashboardid}`)}>
+                <button className='btn btn-primary' onClick={() => navigate(`/dashboard/${user?.data.User.dashboardid}`)}>
                     Go to Dahboard
                 </button>
             </div>
+            )}
             {!auth ? (
                 <div className="d-flex justify-content-center mt-5">
                     <p className="read-the-docs">

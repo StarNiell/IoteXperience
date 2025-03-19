@@ -12,6 +12,7 @@ import Dashboards from './Pages/dashboards.tsx';
 import Profile from './Pages/profile.tsx';
 import DashboardDevices from './Pages/dashboarddevices.tsx';
 import Dashboard from './Pages/dashboard.tsx';
+import Users from './Pages/users.tsx';
 
 function App() {
 
@@ -32,6 +33,7 @@ function App() {
         <Route path="/profile" element={<Profile />} />
         <Route path="/logout" element={<Logout />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/users" element={<Users />} />
       </Routes>
     </BrowserRouter>
   );

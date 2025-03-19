@@ -1,37 +1,60 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../Auth/auth.tsx';
 import Notification from '../Components/notification.tsx';
 import 'bootstrap/dist/css/bootstrap.css';
 import ApiCalls from '../Components/apicalls.tsx';
 import config from '../config/config.ts';
+import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
 
 function Login() {
-    const { setAuth, setUser, user } = useAuth();
+    const { setAuth, setUser } = useAuth();
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
+    const [dashboards, setDashboards] = useState<DashboardModel[]>([]);
+
+    var userdata: any;
 
     const login = async (e: { preventDefault: () => void; }) => {
         e.preventDefault();
 
         const fetchData = async () => {
-            const data = await ApiCalls({ username: email, password: password }, `${config.wsDatabaseUrl}/dologin/`, "post", setAuth, setUser);
-            if (data.error) {
-                setErrorMessage(data.error.message);
+            userdata = await ApiCalls({ username: email, password: password }, `${config.wsDatabaseUrl}/dologin/`, "post", setAuth, setUser);
+            if (userdata.error) {
+                setErrorMessage(userdata.error.message);
                 setShowError(true);
             } else {
+                await fetchDashboards();
                 setAuth(true);
-                setUser(data);
-                localStorage.setItem("user", JSON.stringify(data));
-                navigate(`/dashboard/${data.data.User.dashboardid}`);
+                setUser(userdata);
+                localStorage.setItem("user", JSON.stringify(userdata));
+                navigate(`/dashboard/${userdata.data.User.dashboardid}`);
             }
         };
 
         fetchData();
     };
+
+    const fetchDashboards = async () => {
+        const token = userdata?.data?.Token;
+        const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdashboards/`, "get", setAuth, setUser);
+        if (data?.error) {
+            console.log(data.error.message);
+            setErrorMessage(data.error.message);
+            setShowError(true);
+        } else {
+            data.forEach((element: any) => {
+                dashboards.push({ id: element.id, name: element.name, devices: [] });   
+            });
+            setDashboards(dashboards);
+            localStorage.setItem("dashboards", JSON.stringify(dashboards));
+
+        }
+    };
+
 
     return (
         <form>

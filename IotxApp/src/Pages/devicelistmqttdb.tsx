@@ -110,7 +110,7 @@ const DeviceListMqttDB: React.FC<{}> = () => {
 
     var dList = mergeDevices(deviceList, deviceDBList);
 
-    var token = user?.data?.Token;
+    //var token = user?.data?.Token;
 
     return (
         <>

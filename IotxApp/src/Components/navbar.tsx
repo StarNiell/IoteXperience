@@ -1,49 +1,24 @@
-import React, { useState, useEffect } from 'react';
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../Auth/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faArrowRightToBracket, faHome, faTableColumns, faTableList, faDatabase, faGauge, faDoorOpen } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faArrowRightToBracket, faHome, faTableColumns, faTableList, faGauge, faDoorOpen, faUsers } from '@fortawesome/free-solid-svg-icons';
 import iotxLogo from '/iotx_blue.svg';
-import ApiCalls from '../Components/apicalls.tsx';
-import config from '../config/config.ts';
-// Bootstrap CSS
 import "bootstrap/dist/css/bootstrap.min.css";
-// Bootstrap Bundle JS
 import "bootstrap/dist/js/bootstrap.bundle.min";
 
-interface Dashboard {
-    id: number;
-    name: string;
-}
-
 function Navbar() {
-    const { setAuth, setUser, auth, user } = useAuth();
-    const [dashboards, setDashboards] = useState<Dashboard[]>([]);
-    const [errorMessage, setErrorMessage] = useState('');
-    const [showError, setShowError] = useState(false);
+    const { auth, user, dashboards } = useAuth();
     
     var myUser = "empty";
+    var isAdmin: boolean = false;
 
     if (user)
         if (user.data)
             if (user.data.User)
+            {
                 myUser = user.data.User.Username;
-
-    useEffect(() => {
-        fetchDashboards();
-    }, []);
-
-    const fetchDashboards = async () => {
-        const token = user?.data?.Token;
-        const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdashboards/`, "get", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
-            setShowError(true);
-        } else {
-            setDashboards(data);
-        }
-    };
+                isAdmin = user.data.User.admin;
+            }
 
     return (
         <>
@@ -59,9 +34,13 @@ function Navbar() {
                             <li className="nav-item">
                                     <NavLink to="/" className="nav-link"><FontAwesomeIcon icon={faHome} /><span style={{ paddingLeft: '4px' }}>Home</span></NavLink>
                                 </li>
+                                {
+                                    /*
                                 <li className="nav-item">
                                     <NavLink to="/dashboardtest" className="nav-link"><FontAwesomeIcon icon={faDatabase} /><span style={{ paddingLeft: '4px' }}>Test</span></NavLink>
                                 </li>
+                                    */
+                                }
                                 {auth && (
                                     <>
                                         <li className="nav-item dropdown">
@@ -87,9 +66,14 @@ function Navbar() {
                                                 <FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>{myUser}</span>
                                             </a>
                                             <ul className="dropdown-menu dropdown-menu-dark">
+                                                {isAdmin && (
+                                                <>
                                                 <li><NavLink to="/devices" className="dropdown-item"><FontAwesomeIcon icon={faTableList} /><span style={{ paddingLeft: '4px' }}>Device List</span></NavLink></li>
                                                 <li><NavLink to="/dashboards" className="dropdown-item"><FontAwesomeIcon icon={faTableColumns} /><span style={{ paddingLeft: '4px' }}>Dashboards</span></NavLink></li>
+                                                <li><NavLink to="/users" className="dropdown-item"><FontAwesomeIcon icon={faUsers} /><span style={{ paddingLeft: '4px' }}>Users</span></NavLink></li>
                                                 <li><div className="dropdown-divider"></div></li> {/* Separatore */}
+                                                </>
+                                                )}
                                                 <li><NavLink to="/profile" className="dropdown-item"><FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>Profile</span></NavLink></li>
                                                 <li><NavLink to="/logout" className="dropdown-item"><FontAwesomeIcon icon={faDoorOpen} /><span>Logout</span></NavLink></li>
                                             </ul>

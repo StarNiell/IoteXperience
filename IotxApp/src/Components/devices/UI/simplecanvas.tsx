@@ -1,7 +1,7 @@
 import React, { RefObject } from 'react';
 
 interface SimpleCanvasProps {
-    temp: number;
+    value: number;
     caption: string;
     minVal: number;
     maxVal: number;
@@ -34,14 +34,14 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
         const maxPosition: number = (endAngle/180 * Math.PI);
         const arcRange: number = (maxPosition - minPosition);
 
-        let tempCanvas: number = this.props.temp;
+        let tempCanvas: number = this.props.value;
         let MaxValCanvas: number = this.props.maxVal - 1;
         
-        if (this.props.temp > MaxValCanvas)
+        if (this.props.value > MaxValCanvas)
         {
             tempCanvas = MaxValCanvas;
         }
-        if (this.props.temp < this.props.minVal)
+        if (this.props.value < this.props.minVal)
         {
             tempCanvas = this.props.minVal;
         }   
@@ -89,8 +89,8 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font="30px Verdana";
-                let textToWrite = this.props.temp.toString() + "°C";
-                let textWidth = ctx.measureText(textToWrite ).width / 2;
+                let textToWrite = this.props.value.toFixed(1) + "°C";
+                let textWidth = ctx.measureText(textToWrite).width / 2;
                 ctx.fillText(textToWrite, width - textWidth, height - 15);
 
 

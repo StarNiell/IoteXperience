@@ -40,7 +40,7 @@ function DashboardTest() {
             <SwitchViewUI caption="Switch Test" device_id="switch-001" value={stateSwitch} />
           </Col>
           <Col lg={3}>
-            <SimpleCanvas temp={temp} caption={"Gauge Temp Test"} minVal={0} maxVal={50} rangeValues={[50, 30, 25, 17, 15]} rangeColors={['red', 'orange', 'green', 'orange', '#0d6efd']} />
+            <SimpleCanvas value={temp} caption={"Gauge Temp Test"} minVal={0} maxVal={50} rangeValues={[50, 30, 25, 17, 15]} rangeColors={['red', 'orange', 'green', 'orange', '#0d6efd']} />
           </Col>
           <Col lg={3}>
             <SwitchViewUI caption="Button Test" device_id="button-001" value={stateButton} />

@@ -4,12 +4,14 @@ import React from 'react';
 
 function Logout() {
 
-    const { setAuth, setUser } = useAuth();
+    const { setAuth, setUser, setDashboards } = useAuth();
     const navigate = useNavigate();
 
     React.useEffect(() => {
         // reset all data and status
         setUser(null);
+        setDashboards([]);
+        localStorage.setItem("dashboards", "");
         localStorage.setItem("user", "");
         setAuth(false);
         // redirect to Login page
