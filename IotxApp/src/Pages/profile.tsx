@@ -3,10 +3,14 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser } from '@fortawesome/free-solid-svg-icons';
 
 function Profile() {
-    const { auth, user } = useAuth();
-    
+    const { user } = useAuth();
+    let username: string = "";
 
-    let username: string = user?.data?.User?.Username;
+    if (user)
+        if (user.data)
+            if (user.data.User)
+                username = user.data.User.Username;
+
     return (
         <>
             <div className="d-flex justify-content-center mt-5">

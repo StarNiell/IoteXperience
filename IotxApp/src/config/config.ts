@@ -6,6 +6,8 @@ interface Config {
   mqttClientId: string;
   mqttUsername: string;
   mqttPassword: string;
+  streamProxyUrl: string;
+  hashingSecret: string;
 }
 
 const config: Config = configData;

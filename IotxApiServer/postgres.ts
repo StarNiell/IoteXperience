@@ -2,6 +2,7 @@ import { DeviceModel } from "./deviceModel";
 import { DashboardModel } from "./dashboardModel";
 import { UserDashboardModel } from "./userDashboardModel";
 import { UserModel } from "./userModel";
+import { StreamModel } from "./streamModel";
 
 class Postgres {
     private host: string;
@@ -236,6 +237,7 @@ class Postgres {
             sql += "FROM ";
             sql += "	devices dev ";
             sql += "ORDER BY dashboard_devices_position; ";
+            
             var res
             if (res = await connection.query(sql)) {
                 rows = res.rows;
@@ -244,7 +246,8 @@ class Postgres {
                         result = new DashboardModel({
                             id: row.dashboard_id,
                             name: row.dashboard_name,
-                            devices: []
+                            devices: [],
+                            streams: []
                         });
                     }
                     result.devices.push(new DeviceModel({
@@ -267,9 +270,45 @@ class Postgres {
                     }));
 
                 });
+
+                sql = "SELECT ";
+                sql += "	" + id.toString() + " as dashboard_id, ";
+                sql += "	(SELECT Name FROM dashboards WHERE id = " + id.toString() + ") as dashboard_name, ";
+                sql += "	COALESCE((SELECT id FROM dashboard_streams WHERE dashboardid = " + id.toString() + " AND streamid = str.id), 0) as dashboard_streams_id, ";
+                sql += "	COALESCE((SELECT Position FROM dashboard_streams WHERE dashboardid = " + id.toString() + " AND streamid = str.id), 999999) as dashboard_streams_position, ";
+                sql += "	str.id as Strid, ";
+                sql += "	str.stream_id, ";
+                sql += "	str.stream_description, ";
+                sql += "	str.stream_url ";
+                sql += "FROM ";
+                sql += "	streams str ";
+                sql += "ORDER BY dashboard_streams_position; ";
+
+                var res
+                if (res = await connection.query(sql)) {
+                    rows = res.rows;
+                    rows.forEach((row) => {
+                        if (result == null) {
+                            result = new DashboardModel({
+                                id: row.dashboard_id,
+                                name: row.dashboard_name,
+                                devices: [],
+                                streams: []
+                            });
+                        }
+                        result.streams.push(new StreamModel({
+                            id: row.strid,
+                            stream_id: row.stream_id,
+                            stream_url: row.stream_url,
+                            stream_description: row.stream_description,
+                            position: row.dashboard_streams_position,
+                            dashboard_stream_id: row.dashboard_streams_id
+                        }));
+
+                    });
+                }
+
             }
-
-
         }
         catch (err) {
             console.error(err);
@@ -356,7 +395,17 @@ class Postgres {
         var ret = false;
         try {
             var connection = await this.getConnection();
-            let sql: string = "DELETE FROM dashboards "
+
+            let sql = "DELETE FROM user_dashboards WHERE dashboardid = $1;";
+            await connection.query(sql, [id]);
+
+            sql = "DELETE FROM dashboard_devices WHERE dashboardid = $1;";
+            await connection.query(sql, [id]);
+
+            sql = "DELETE FROM dashboard_streams WHERE dashboardid = $1;";
+            await connection.query(sql, [id]);
+
+            sql = "DELETE FROM dashboards "
             sql += "WHERE id = $1;"
             await connection.query(sql, [id]);
             ret = true;
@@ -391,6 +440,15 @@ class Postgres {
                 ret = true;
             }
 
+            if (ret) {
+                let sql: string = "INSERT INTO user_dashboards (userid, dashboardid, defaultdb) "
+                sql += "SELECT "
+                sql += "	1 as userid, "
+                sql += "	(SELECT MAX(id) FROM dashboards) as dashboardid, "
+                sql += "	FALSE as defaultdb;"
+                await connection.query(sql);
+            }
+
         }
         catch (err) {
             console.error(err);
@@ -408,7 +466,7 @@ class Postgres {
             var connection = await this.getConnection();
 
             var res
-            if (res = await connection.query("SELECT COUNT(*) as Exists FROM dashboards WHERE name = $1", [name])) {
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM dashboards WHERE name = $1 and id <> $2", [name, id])) {
                 if (res.rows[0].exists > 0) {
                     ret = true;
                 }
@@ -546,7 +604,7 @@ class Postgres {
             var connection = await this.getConnection();
 
             var res
-            if (res = await connection.query("SELECT COUNT(*) as Exists FROM users WHERE username = $1", [user.username])) {
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM users WHERE username = $1 and id <> $2", [user.username, user.id])) {
                 if (res.rows[0].exists > 0) {
                     ret = true;
                 }
@@ -759,6 +817,161 @@ class Postgres {
         }
         return ret;
     }
+
+        public async GetStreams() {
+        var rows: StreamModel[] = [];
+        try {
+            var connection = await this.getConnection();
+            var res
+            if (res = await connection.query("SELECT * FROM Streams ORDER BY stream_id")) {
+                rows = res.rows;
+            }
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return rows;
+    }
+
+    public async AddDashboardStream(dashboard_id: number, stream_id: number): Promise<boolean> {
+        let ret: boolean = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "WITH LP AS ( ";
+            sql += "    SELECT MAX(Position) as LastPosition FROM dashboard_streams ";
+            sql += "    WHERE dashboardid = $1 ";
+            sql += ") ";
+            sql += "INSERT INTO dashboard_streams (dashboardid, streamid, position) VALUES ( ";
+            sql += "$1, $2, COALESCE((SELECT LastPosition + 1 FROM LP), 1)); ";
+            await connection.query(sql, [dashboard_id, stream_id]);
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async RemoveDashboardStream(dashboard_id: number, dashboard_stream_id: number): Promise<boolean> {
+        let ret: boolean = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "WITH Deleted AS ( ";
+            sql += "    DELETE FROM dashboard_streams ";
+            sql += "    WHERE id = " + dashboard_stream_id.toString() + " ";
+            sql += "    RETURNING Position ";
+            sql += ") \n";
+            sql += "UPDATE dashboard_streams ";
+            sql += "SET Position = Position - 1 ";
+            sql += "WHERE  ";
+            sql += "	dashboardid = " + dashboard_id.toString() + " ";
+            sql += "	AND Position > (SELECT Position FROM Deleted); ";
+            console.log(sql);
+            var res = await connection.query(sql);
+            console.log(res);
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async DeleteStream(id: number): Promise<boolean> {
+        var ret = false;
+        let sql: string = "";
+        try {
+            var connection = await this.getConnection();
+
+            sql = "DELETE FROM streams "
+            sql += "WHERE id = $1;"
+            await connection.query(sql, [id]);
+
+            ret = true;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async NewStream(stream: StreamModel): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+
+            var res
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM streams WHERE stream_id = $1", [stream.stream_id])) {
+                if (res.rows[0].exists > 0) {
+                    ret = true;
+                }
+            }
+
+            if (!ret) {
+                let sql: string = "INSERT INTO streams ("
+                sql += "stream_id, "
+                sql += "stream_url, "
+                sql += "stream_description) "
+                sql += "VALUES ($1, $2, $3);"
+                await connection.query(sql, [stream.stream_id, stream.stream_url, stream.stream_description]);
+                ret = true;
+            }
+
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
+    public async EditStream(stream: StreamModel): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+
+            var res
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM users WHERE username = $1 and id <> $2", [stream.stream_id, stream.id])) {
+                if (res.rows[0].exists > 0) {
+                    ret = true;
+                }
+            }
+
+            if (!ret) {
+                let sql: string = "UPDATE streams SET "
+                sql += "stream_id = ($1), "
+                sql += "stream_url = ($2), "
+                sql += "stream_description = ($3) "
+                sql += "WHERE id = ($4);"
+                await connection.query(sql, [stream.stream_id, stream.stream_url, stream.stream_description, stream.id]);
+                ret = true;
+            }
+
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection.end();
+        }
+        return ret;
+    }
+
 }
 
 export { Postgres };

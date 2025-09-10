@@ -4,6 +4,7 @@ import { DeviceModel } from './deviceModel';
 import { DashboardModel } from './dashboardModel';
 import { UserDashboardModel } from './userDashboardModel';
 import { UserModel } from './userModel';
+import { StreamModel } from './streamModel';
 
 class Server {
     private app: express.Application;
@@ -310,6 +311,52 @@ class Server {
             }
         });
 
+        this.app.post('/adddashboardstream', async (req, res) => {
+            try {
+                console.log(req.body.params);
+                var token = req.body.params.token as string;
+                var UserID = await this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return
+                }
+                else {
+                    let id: number = parseInt(req.body.params.dashboardid as string, 10);
+                    let streamid: number = parseInt(req.body.params.streamid as string, 10);
+                    let result = await this.db.AddDashboardStream(id, streamid);
+                    res.json(result);
+                }
+            }
+            catch (error) {
+                console.log(error?.message)
+                res.sendStatus(500);
+            }
+        });
+
+        this.app.post('/remdashboardstream', async (req, res) => {
+            try {
+                console.log(req.body.params);
+                var token = req.body.params.token as string;
+                var UserID = await this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return
+                }
+                else {
+                    let dashboardid: number = parseInt(req.body.params.dashboardid as string, 10);
+                    let dashboardstreamid: number = parseInt(req.body.params.dashboardstreamid as string, 10);
+                    let result = await this.db.RemoveDashboardStream(dashboardid, dashboardstreamid);
+                    res.json(result);
+                }
+            }
+            catch (error) {
+                console.log(error?.message)
+                res.sendStatus(500);
+            }
+        });
+
         this.app.post('/savedevice', async (req, res) => {
             console.log(req.body.params);
             var token = req.body.params.token as string;
@@ -469,6 +516,87 @@ class Server {
                 }
             }
         });
+
+        this.app.get('/getstreams', async (req, res) => {
+            try {
+                console.log(req.query);
+                var token = req.query.token as string;
+                var UserID = await this.db.GetUserIDByToken(token);
+                console.log(UserID);
+                if (UserID <= 0) {
+                    res.json({ "forbidden": "Session expired or invalid token" });
+                    return
+                }
+                else {
+                    var key = req.query.key;
+                    let result = await this.db.GetStreams();
+                    res.json(result);
+                }
+            }
+            catch (error) {
+                console.log(error?.message)
+                res.sendStatus(500);
+            }
+        });
+
+        this.app.post('/deletestream', async (req, res) => {
+            console.log(req.body.params);
+            var token = req.body.params.token as string;
+            var UserID = await this.db.GetUserIDByToken(token);
+            console.log(UserID);
+            if (UserID <= 0) {
+                res.json({ "forbidden": "Session expired or invalid token" });
+                return
+            }
+            else {
+                var key = req.body.params.key;
+                var id = req.body.params.id as number;
+                let result = await this.db.DeleteStream(id);
+                if (result) {
+                    console.log('Deleted');
+                    res.sendStatus(200);
+                }
+            }
+        });
+
+        this.app.post('/newStream', async (req, res) => {
+            console.log(req.body.params);
+            var token = req.body.params.token as string;
+            var UserID = await this.db.GetUserIDByToken(token);
+            console.log(UserID);
+            if (UserID <= 0) {
+                res.json({ "forbidden": "Session expired or invalid token" });
+                return
+            }
+            else {
+                var stream = req.body.params.stream as StreamModel;
+                let result = await this.db.NewStream(stream);
+                if (result) {
+                    console.log('Inserted');
+                    res.sendStatus(200);
+                }
+            }
+        });
+
+        this.app.post('/editstream', async (req, res) => {
+            console.log(req.body.params);
+            var token = req.body.params.token as string;
+            var UserID = await this.db.GetUserIDByToken(token);
+            console.log(UserID);
+            if (UserID <= 0) {
+                res.json({ "forbidden": "Session expired or invalid token" });
+                return
+            }
+            else {
+                var stream = req.body.params.stream as StreamModel;
+                let result = await this.db.EditStream(stream);
+                if (result) {
+                    console.log('Updated');
+                    res.sendStatus(200);
+                }
+            }
+        });
+
 
         // Test only
         this.app.post('/insert', async (req, res) => {

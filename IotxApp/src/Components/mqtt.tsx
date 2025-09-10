@@ -9,11 +9,15 @@ const MqttContext = createContext<{
   setMqttClient: React.Dispatch<React.SetStateAction<mqtt.MqttClient | null>>;
   deviceList: DeviceModel[] | [];
   setDeviceList: React.Dispatch<React.SetStateAction<DeviceModel[] | []>>;
+  publishMessage: (topic: string, message: string) => Promise<void>;
+  checkMqttConnection: () => Promise<void>;
 }>({
   mqttClient: null,
   setMqttClient: () => { },
   deviceList: [],
-  setDeviceList: () => []
+  setDeviceList: () => [],
+  publishMessage: async () => { },
+  checkMqttConnection: async () => { },
 });
 
 export const useMqtt = () => useContext(MqttContext);
@@ -21,11 +25,12 @@ export const useMqtt = () => useContext(MqttContext);
 const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mqttClient, setMqttClient] = useState<mqtt.MqttClient | null>(null);
   const [, setConnectStatus] = useState('')
-  const [deviceList, setDeviceList ] = useState<DeviceModel[]>([]);
+  const [deviceList, setDeviceList] = useState<DeviceModel[]>([]);
 
 
-  if (!(mqttClient)) {
-    console.log("No mqtt connection available!");
+  const checkMqttConnection = async () => {
+
+    console.log("checkMqttConnection requests!");
     console.log("connecting to mqtt broker");
     setConnectStatus('Connecting');
 
@@ -68,19 +73,19 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       setConnectStatus('Reconnecting')
     })
 
- 
+
     client.on('message', (topic, message) => {
       var payload = JSON.parse(message.toString());
-    
+
       setDeviceList(prevDeviceList => {
         // Cloniamo l'array precedente per creare un nuovo riferimento
         let newDeviceList = [...prevDeviceList];
-    
+
         let deviceIndex = newDeviceList.findIndex(element => element.topic === topic && element.device_id === payload.device_id);
         if (deviceIndex !== -1) {
           // Se il dispositivo esiste, aggiorniamo i valori
           newDeviceList[deviceIndex] = {
-            ...newDeviceList[deviceIndex], 
+            ...newDeviceList[deviceIndex],
             type: payload.type,
             value: payload.value,
             timestamp: payload.timestamp,
@@ -111,18 +116,36 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
           newDeviceList.push(newDevice);
           console.log(newDevice);
         }
-    
+
         return newDeviceList; // React rileverà la modifica e attiverà un re-render
       });
-    
-      console.log({"topic": topic, "device_id": payload.device_id, "type": payload.type, "value": payload.value, "timestamp": payload.timestamp, "unit": payload.unit, "status": payload.status  });
-      
-    });
 
-  }
+      console.log({ "topic": topic, "device_id": payload.device_id, "type": payload.type, "value": payload.value, "timestamp": payload.timestamp, "unit": payload.unit, "status": payload.status });
+
+    });
+  } 
+
+  if (!mqttClient)
+    checkMqttConnection();  
+
+  const publishMessage = async (topic: string, message: string) => {
+
+    if (!mqttClient)
+      await checkMqttConnection();
+
+    if (mqttClient) {
+      mqttClient.publish(topic, message, (err) => {
+        if (err) {
+          console.error("Publish error: ", err);
+        } else {
+          console.log(`Message published to topic "${topic}": ${message}`);
+        }
+      });
+    }
+  };
 
   return (
-    <MqttContext.Provider value={{ mqttClient, setMqttClient, deviceList, setDeviceList }}>
+    <MqttContext.Provider value={{ mqttClient, setMqttClient, deviceList, setDeviceList, publishMessage, checkMqttConnection }}>
       {children}
     </MqttContext.Provider>
   );

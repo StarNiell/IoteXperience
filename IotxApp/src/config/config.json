@@ -1,7 +1,10 @@
-{
-    "wsDatabaseUrl": "http://192.168.1.121:3000",
-    "mqttServer": "ws://192.168.1.107:1885",
+  {
+    "wsDatabaseUrl": "http://localhost:3000",
+    "wsDatabaseUrlRemote": "http://starniell72.ddns.net:5722",
+    "mqttServer": "ws://starniell72.ddns.net:5723",
     "mqttClientId": "iotxClient01",
     "mqttUsername": "mqtt-user",
-    "mqttPassword": "Goldendrops2025"
+    "mqttPassword": "Goldendrops2025",
+    "streamProxyUrl": "http://localhost:3002",
+    "hashingSecret": "Abx2791llein"
   }

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useAuth } from '../Auth/auth.tsx';
 import ApiCalls from '../Components/apicalls.tsx';
 import config from '../config/config.ts';
@@ -9,32 +9,52 @@ import { Container, Row, Col } from 'react-bootstrap';
 import Device from '../Components/devices/device.tsx';
 import { useMqtt } from '../Components/mqtt.tsx';
 import { DeviceModel } from '../Components/devices/models/deviceModel.tsx';
-//import { useNavigate } from 'react-router-dom';
+import { StreamModel } from '../Components/devices/models/streamModel.tsx';
+import Stream from '../Components/devices/stream.tsx';
 
 const Dashboard: React.FC = () => {
-    const { dashboardId } = useParams<{ dashboardId: string }>();
-    const { setAuth, setUser, user, dashboards } = useAuth();
-    const { deviceList } = useMqtt();
+    const {dashboardId } = useParams<{ dashboardId: string }>();
+    const {setAuth, setUser, user, dashboards } = useAuth();
+    const {deviceList, checkMqttConnection } = useMqtt();
     const [dashboard, setDashboard] = useState<DashboardModel | null>(null);
     const [mergedDevices, setMergedDevices] = useState<DeviceModel[]>([]);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-    //const navigate = useNavigate();
+    const navigate = useNavigate();
+    const [dboards, setDashboards] = useState<DashboardModel[]>([]);
 
-    //let iFlag = 0;
-
+    if (user?.data?.User === undefined) {
+        navigate('/login');
+    }
     var checkDashboard = dashboardId;
 
-    if (dashboards.filter(dashboard => dashboard.id === parseInt(checkDashboard || '0')).length === 0) {
-        checkDashboard =  user?.data?.User.dashboardid.toString();   
+    if (checkDashboard === '999') {
+        useEffect(() => {
+            refreshDashboards();
+        });
+        /*
+        checkDashboard = undefined;
+        //navigate(`/`);
+        window.location.href = "/";
+        */
     }
-    
-    /*
-    const delay = async (ms: number) => {
-        return new Promise((resolve) =>
-            setTimeout(resolve, ms));
-    };
-    */
+
+    if (dashboards.filter(dashboard => dashboard.id === parseInt(checkDashboard || '0')).length === 0) {
+        checkDashboard = user?.data?.User.dashboardid.toString();
+    }
+
+    useEffect(() => {
+        const handleFocus = () => {
+            console.log("Window is focused");
+            checkMqttConnection(); // Controlla la connessione MQTT quando la finestra riceve il focus
+        };
+
+        window.addEventListener('focus', handleFocus);
+
+        return () => {
+            window.removeEventListener('focus', handleFocus);
+        };
+    }, [checkMqttConnection]);
 
     useEffect(() => {
         fetchDashboard();
@@ -53,6 +73,24 @@ const Dashboard: React.FC = () => {
             setMergedDevices(merged);
         }
     }, [deviceList, dashboard]);
+
+    const refreshDashboards = async () => {
+        const token = user?.data?.Token;
+        const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdashboards/`, "get", setAuth, setUser);
+        if (data?.error) {
+            console.log(data.error.message);
+            setErrorMessage(data.error.message);
+            setShowError(true);
+        } else {
+            dboards.length = 0; // Clear the array while keeping the reference
+            data.forEach((element: any) => {
+                dboards.push({ id: element.id, name: element.name, devices: [], streams: [] });   
+            });
+            setDashboards(dboards);
+            localStorage.setItem("dashboards", JSON.stringify(dboards));
+            window.location.href = "/";
+        }
+    };
 
     const fetchDashboard = async () => {
         const token = user?.data?.Token;
@@ -82,16 +120,24 @@ const Dashboard: React.FC = () => {
                     navigate(`/dashboard/${dashboardId}`);
                 } else {
                  */
-                    // Take only devices that are in the dashboard
-                    var filtered = merged.filter(device => device.dashboard_device_id !== 0);
-                    setDashboard({ ...data, devices: filtered });
-                    setMergedDevices(filtered);
+                // Take only devices that are in the dashboard
+
+
+                var filtered = merged.filter(device => device.dashboard_device_id !== 0);
+                const filteredStreams = data.streams.filter((stream: StreamModel) => stream.dashboard_stream_id !== 0);
+                //setDashboard({ ...data, devices: filtered });
+                setDashboard({ ...data, devices: filtered, streams: filteredStreams });
+                setMergedDevices(filtered);
                 //}
             }
         }
     };
 
-    
+    // Unisci device e stream in un unico array, mantenendo l'ordine
+    const allItems = [
+        ...mergedDevices.map(device => ({ ...device, __type: 'device' })),
+        ...(dashboard?.streams || []).map(stream => ({ ...stream, __type: 'stream' }))
+    ];
 
     const mergeDevices = (apiDevices: DeviceModel[], mqttDevices: DeviceModel[]) => {
         return apiDevices.map(apiDevice => {
@@ -100,6 +146,7 @@ const Dashboard: React.FC = () => {
         });
     };
 
+    /*
     function chunkArray(devices: DeviceModel[], chunkSize: number): DeviceModel[][] {
         const chunks = [];
         for (let i = 0; i < devices.length; i += chunkSize) {
@@ -107,26 +154,39 @@ const Dashboard: React.FC = () => {
         }
         return chunks;
     }
+        */
+
+    // Chunk dell'array misto
+    function chunkArrayMixed(items: any[], chunkSize: number): any[][] {
+        const chunks = [];
+        for (let i = 0; i < items.length; i += chunkSize) {
+            chunks.push(items.slice(i, i + chunkSize));
+        }
+        return chunks;
+    }
 
     return (
-        <>
-            <center className='p-3'><h1>Dashboard: {dashboard?.name}</h1></center>
-            <Container className="fluid">
-                {chunkArray(mergedDevices, 4).map((deviceChunk, index) => (
-                    <Row key={index}>
-                        {deviceChunk.map((device) => (
-                            <Col style={{paddingTop: "10px"}} lg="3" key={device.device_id}>
-                                <Device device={device} />
-                            </Col>
-                        ))}
-                    </Row>
-                ))}
-                <div>
-                    <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
-                </div>
-            </Container>
-        </>
+    <>
+        <center className='p-3'><h1>Dashboard: {dashboard?.name}</h1></center>
+        <Container className="fluid">
+            {chunkArrayMixed(allItems, 4).map((itemChunk, index) => (
+                <Row key={index}>
+                    {itemChunk.map((item: any) => (
+                        <Col style={{ paddingTop: "10px" }} lg="3" key={item.device_id || item.stream_id}>
+                            {item.__type === 'device' ? (
+                                <Device device={item} />
+                            ) : (
+                                <Stream stream={item} />
+                            )}
+                        </Col>
+                    ))}
+                </Row>
+            ))}
+            <div>
+                <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
+            </div>
+        </Container>
+    </>
     );
-};
-
+}
 export default Dashboard;

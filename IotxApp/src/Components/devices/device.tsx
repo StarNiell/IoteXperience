@@ -14,11 +14,11 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
     let content;
     switch (device.type) {
         case "switch":
-            content = <SwitchViewUI caption={device.title !== "" ? device.title : "Switch"} device_id={device.device_id} value={state} button={false} />;
+            content = <SwitchViewUI subscription={device.subscription} caption={device.title !== "" ? device.title : "Switch"} device_id={device.device_id} value={state} button={false} />;
             break;
 
         case "button":
-            content = <SwitchViewUI caption={device.title !== "" ? device.title : "Button"} device_id={device.device_id} value={state}  button={true} />;
+            content = <SwitchViewUI subscription={device.subscription} caption={device.title !== "" ? device.title : "Button"} device_id={device.device_id} value={state}  button={true} />;
             break;
 
         case "sensor":
@@ -26,7 +26,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
             break;
 
         case "contact":
-            content = <ContactViewUI caption={device.title !== "" ? device.title : "Contact"} device_id={device.device_id} value={state} />;
+            content = <ContactViewUI caption={device.title !== "" ? device.title : "Contact"} value={state} />;
             break;
 
         default:

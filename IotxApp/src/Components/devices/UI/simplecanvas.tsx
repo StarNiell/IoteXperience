@@ -59,6 +59,8 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
             index++;
         });
 
+        let sensorValue: number = this.props.value;
+
         if (canvas) {
             const ctx = canvas.getContext("2d");
             if (canvas.parentElement) {
@@ -67,8 +69,6 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
             }
             const width = canvas.clientWidth / 2;
             const height = canvas.clientHeight;
-
-            console.log("width: " + width + " height: " + height);
 
             if (ctx) {
                 ctx.clearRect(0, 0, canvas.width, canvas.height); // Clear the canvas before redrawing
@@ -89,7 +89,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font="30px Verdana";
-                let textToWrite = this.props.value.toFixed(1) + "°C";
+                let textToWrite = Number(sensorValue).toFixed(1) + "°C";
                 let textWidth = ctx.measureText(textToWrite).width / 2;
                 ctx.fillText(textToWrite, width - textWidth, height - 15);
 

@@ -45,12 +45,14 @@ const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   }
 
+    
   if (dashboards.length === 0) {
     const dashboardsLocal = localStorage.getItem("dashboards");
     if (dashboardsLocal && dashboardsLocal.trim() !== "[]") {
       setDashboards(JSON.parse(dashboardsLocal));
     }
   }
+      
   
   return (
     <AuthContext.Provider value={{ auth, setAuth, user, setUser, dashboards, setDashboards }}>

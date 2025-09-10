@@ -1,7 +1,7 @@
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../Auth/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faArrowRightToBracket, faHome, faTableColumns, faTableList, faGauge, faDoorOpen, faUsers } from '@fortawesome/free-solid-svg-icons';
+import { faUser, faArrowRightToBracket, faHome, faTableColumns, faTableList, faVideo, faGauge, faDoorOpen, faUsers } from '@fortawesome/free-solid-svg-icons';
 import iotxLogo from '/iotx_blue.svg';
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min";
@@ -53,6 +53,8 @@ function Navbar() {
                                                         <NavLink to={`/dashboard/${dashboard.id}`} className="dropdown-item">{dashboard.name}</NavLink>
                                                     </li>
                                                 ))}
+                                                <li><div className="dropdown-divider"></div></li> {/* Separatore */}
+                                                <li><NavLink to="/dashboard/999" className="dropdown-item"><span style={{ paddingLeft: '4px' }}>Refresh</span></NavLink></li>
                                             </ul>
                                         </li>
                                     </>
@@ -69,6 +71,7 @@ function Navbar() {
                                                 {isAdmin && (
                                                 <>
                                                 <li><NavLink to="/devices" className="dropdown-item"><FontAwesomeIcon icon={faTableList} /><span style={{ paddingLeft: '4px' }}>Device List</span></NavLink></li>
+                                                <li><NavLink to="/streams" className="dropdown-item"><FontAwesomeIcon icon={faVideo} /><span style={{ paddingLeft: '4px' }}>Stream List</span></NavLink></li>
                                                 <li><NavLink to="/dashboards" className="dropdown-item"><FontAwesomeIcon icon={faTableColumns} /><span style={{ paddingLeft: '4px' }}>Dashboards</span></NavLink></li>
                                                 <li><NavLink to="/users" className="dropdown-item"><FontAwesomeIcon icon={faUsers} /><span style={{ paddingLeft: '4px' }}>Users</span></NavLink></li>
                                                 <li><div className="dropdown-divider"></div></li> {/* Separatore */}

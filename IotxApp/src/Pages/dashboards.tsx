@@ -44,9 +44,12 @@ const Dashboards: React.FC = () => {
     };
 
     const handleDevicesDashboard = (dashboard: DashboardModel) => {
-        navigate(`/dashboards/${dashboard.id}`);
+        navigate(`/dashboards/d/${dashboard.id}`);
     };
 
+    const handleStreamsDashboard = (dashboard: DashboardModel) => {
+        navigate(`/dashboards/s/${dashboard.id}`);
+    }
     const handleDeleteDashboard = async (dashboard: DashboardModel) => {
         const token = user?.data?.Token;
         const data = await ApiCalls({ token, id: dashboard.id }, `${config.wsDatabaseUrl}/deletedashboard/`, "post", setAuth, setUser);
@@ -142,10 +145,11 @@ const Dashboards: React.FC = () => {
                             <tbody>
                                 {dashboards.map((dashboard) => (
                                     <tr key={dashboard.id}>
-                                        <td style={{width: "80%"}}>{dashboard.name}</td>
-                                        <td style={{minWidth: "350px"}}>
+                                        <td style={{width: "60%"}}>{dashboard.name}</td>
+                                        <td style={{minWidth: "450px"}}>
                                             <Button variant="warning" onClick={() => handleEditDashboard(dashboard)}>Edit</Button>{' '}
                                             <Button variant="info" onClick={() => handleDevicesDashboard(dashboard)}>Widgets</Button>{' '}
+                                            <Button variant="success" onClick={() => handleStreamsDashboard(dashboard)}>Streams</Button>{' '}
                                             <Button variant="secondary" onClick={() => handleUsersDashboard(dashboard)}>Users</Button>{' '}
                                             {dashboard.id > 1 && <Button variant="danger" disabled={dashboard.id === 1} onClick={() => handleDeleteDashboard(dashboard)}>Delete</Button>}
                                         </td>

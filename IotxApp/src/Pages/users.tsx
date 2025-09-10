@@ -121,7 +121,7 @@ const Users: React.FC = () => {
 
     return (
         <>
-            <center className='p-3'><h1>Dashboards</h1></center>
+            <center className='p-3'><h1>Users</h1></center>
             <div style={{ maxWidth: '800px', margin: 'auto' }}>
                 <Row className="my-3">
                     <Col>

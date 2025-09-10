@@ -4,8 +4,8 @@ import { faDotCircle } from '@fortawesome/free-regular-svg-icons'
 import { faCircleDot } from '@fortawesome/free-solid-svg-icons'
 import { useMqtt } from '../../mqtt';
 
-const SwitchViewUI: React.FC<{ device_id: string, value: number; caption: string; button: boolean }> = ({device_id, value, caption, button }) => {
-    const { mqttClient } = useMqtt();
+const SwitchViewUI: React.FC<{subscription: string,  device_id: string, value: number; caption: string; button: boolean }> = ({subscription, device_id, value, caption, button }) => {
+    const { publishMessage } = useMqtt();
 
     let switchState: string = ""
     if (value)
@@ -15,26 +15,19 @@ const SwitchViewUI: React.FC<{ device_id: string, value: number; caption: string
 
     let currentValue: number = value;
 
-    const setAction = () => {
-        if (mqttClient)
-        {
-            currentValue = currentValue === 1 ? 0 : 1;
+    const handlePublish = () => {
+        currentValue = currentValue === 1 ? 0 : 1;
+        publishMessage(subscription, '{"device_id": "' + device_id + '", "value": ' + currentValue + '}')
+          .then(() => console.log("Message published successfully"))
+          .catch((err) => console.error("Failed to publish message: ", err));
+      };
 
-            mqttClient.publish("iotx/in", '{"device_id": "' + device_id + '", "value": ' + currentValue + '}')
-        }
-        else
-        {
-            alert("No mqttClient avaialble!");
-        }
-        
-    }
-
-    return (
+      return (
         <>
             <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
                 <center><div style={{ minHeight: "25px" }} className="bg-lightgray rounded text-dark" >{caption}</div></center>
                 <div className="device-ui" style={{ minHeight: "132px" }}>
-                    <center><h1 onClick={setAction} className={switchState + " display-1"} style={{ padding: "auto", cursor: 'pointer' }}><FontAwesomeIcon icon={!button ? faDotCircle : faCircleDot} /></h1></center>
+                    <center><h1 onClick={handlePublish} className={switchState + " display-1"} style={{ padding: "auto", cursor: 'pointer' }}><FontAwesomeIcon icon={!button ? faDotCircle : faCircleDot} /></h1></center>
                 </div>
             </div>
         </>

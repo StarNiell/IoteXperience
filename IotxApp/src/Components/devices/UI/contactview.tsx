@@ -2,7 +2,7 @@
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlugCircleBolt } from '@fortawesome/free-solid-svg-icons'
 
-const ContactViewUI: React.FC<{ device_id: string, value: number; caption: string }> = ({device_id, value, caption }) => {
+const ContactViewUI: React.FC<{ value: number; caption: string }> = ({value, caption }) => {
 
     let contactState: string = ""
     if (value)

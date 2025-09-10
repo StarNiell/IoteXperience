@@ -1,0 +1,7 @@
+{
+    "wsDatabaseUrl": "http//starniell72.ddns.net:5722",
+    "mqttServer": "ws://starniell72.ddns.net:5723",
+    "mqttClientId": "iotxClient01",
+    "mqttUsername": "mqtt-user",
+    "mqttPassword": "Goldendrops2025"
+  }

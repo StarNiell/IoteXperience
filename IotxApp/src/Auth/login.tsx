@@ -47,7 +47,7 @@ function Login() {
             setShowError(true);
         } else {
             data.forEach((element: any) => {
-                dashboards.push({ id: element.id, name: element.name, devices: [] });   
+                dashboards.push({ id: element.id, name: element.name, devices: [], streams: [] });   
             });
             setDashboards(dashboards);
             localStorage.setItem("dashboards", JSON.stringify(dashboards));
