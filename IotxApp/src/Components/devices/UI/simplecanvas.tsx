@@ -2,6 +2,7 @@ import React, { RefObject } from 'react';
 
 interface SimpleCanvasProps {
     value: number;
+    text: string;
     caption: string;
     minVal: number;
     maxVal: number;
@@ -60,6 +61,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
         });
 
         let sensorValue: number = this.props.value;
+        let text: string = this.props.text?.toString() || "";
 
         if (canvas) {
             const ctx = canvas.getContext("2d");
@@ -92,6 +94,12 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
                 let textToWrite = Number(sensorValue).toFixed(1) + "°C";
                 let textWidth = ctx.measureText(textToWrite).width / 2;
                 ctx.fillText(textToWrite, width - textWidth, height - 15);
+
+                ctx.fillStyle = '#FFFFFF';
+                ctx.font="14px Verdana";
+                let text2ToWrite = text;
+                let text2Width = ctx.measureText(text2ToWrite).width / 2;
+                ctx.fillText(text2ToWrite, width - text2Width, height);
 
 
             }

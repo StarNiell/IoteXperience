@@ -6,6 +6,8 @@ export class DeviceModel {
   type: string = "";
   value: number = 0;
   unit: string = "";
+  value2: number = 0;
+  unit2: string = "";
   subscription: string = "";
   status: string = "";
   step: number = 0;
@@ -18,7 +20,7 @@ export class DeviceModel {
 
   constructor(obj: {
     id: number, topic: string; device_id: string; timestamp: string, type: string;
-    value: number; unit: string, subscription: string, status: string;
+    value: number; unit: string, value2: number; unit2: string, subscription: string, status: string;
     step: number, min: number, max: number, title: string, description: string;
     position: number; dashboard_device_id: number;
   }) {
@@ -29,6 +31,8 @@ export class DeviceModel {
     this.type = obj.type;
     this.value = obj.value;
     this.unit = obj.unit;
+    this.value2 = obj.value2;
+    this.unit2 = obj.unit2;
     this.subscription = obj.subscription;
     this.status = obj.status;
     this.step = obj.step;

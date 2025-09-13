@@ -126,7 +126,7 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                     <th>device_id</th>
                                     <th>type</th>
                                     <th>value</th>
-                                    <th>unit</th>
+                                    <th>value2</th>
                                     <th>subscription</th>
                                     <th>Actions</th>
                                 </tr>
@@ -138,8 +138,8 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                         <td>{device.topic}</td>
                                         <td>{device.device_id}</td>
                                         <td>{device.type}</td>
-                                        <td>{device.value}</td>
-                                        <td>{device.unit}</td>
+                                        <td>{device.value} {device.unit==="state" ? "" : device.unit }</td>
+                                        <td>{device.value2} {device.unit2==="state" ? "" : device.unit2 }</td>
                                         <td>{device.subscription}</td>
                                         <td style={{ minWidth: "200px" }}>
                                             {device.id === 0 ? (

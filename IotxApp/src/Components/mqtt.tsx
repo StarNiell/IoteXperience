@@ -88,8 +88,10 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
             ...newDeviceList[deviceIndex],
             type: payload.type,
             value: payload.value,
+            value2: payload.value2 ?? null,
             timestamp: payload.timestamp,
             unit: payload.unit,
+            unit2: payload.unit2 ?? "",
             subscription: payload.subscription,
             status: payload.status
           };
@@ -101,8 +103,10 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
             device_id: payload.device_id,
             type: payload.type,
             value: payload.value,
+            value2: payload.value2 ?? null,
             timestamp: payload.timestamp,
             unit: payload.unit,
+            unit2: payload.unit2 ?? "",
             subscription: payload.subscription,
             status: payload.status,
             step: 0, // default value

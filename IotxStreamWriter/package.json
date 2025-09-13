@@ -1,0 +1,11 @@
+{
+  "name": "video-recorder",
+  "version": "1.0.0",
+  "description": "Recorder MJPEG con ffmpeg e segmentazione oraria",
+  "main": "recorder.js",
+  "scripts": {
+    "start": "node recorder.js"
+  },
+  "author": "Tuo Nome",
+  "license": "MIT"
+}
