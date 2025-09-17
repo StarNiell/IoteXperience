@@ -24,7 +24,7 @@ const DevicesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
 
     const fetchDeviceList = useCallback(async () => {
         const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdevices/`, "get", setAuth, setUser);
-        console.log(data);
+        //console.log(data);
         if (data?.error) {
             console.log(data.error.message);
         } else {

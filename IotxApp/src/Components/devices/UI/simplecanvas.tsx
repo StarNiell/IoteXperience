@@ -2,6 +2,7 @@ import React, { RefObject } from 'react';
 
 interface SimpleCanvasProps {
     value: number;
+    timestamp: string;
     text: string;
     caption: string;
     minVal: number;
@@ -12,10 +13,12 @@ interface SimpleCanvasProps {
 
 class SimpleCanvas extends React.Component<SimpleCanvasProps> {
     canvas: RefObject<HTMLCanvasElement>;
+    bgClassName: string;
 
     constructor(props: SimpleCanvasProps) {
         super(props);
         this.canvas = React.createRef();
+        this.bgClassName = "";
     }
 
     componentDidMount() {
@@ -26,6 +29,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
         this.drawCanvass();
     }
 
+    
     drawCanvass() {
         const canvas = this.canvas.current;
         const startAngle: number = 215;
@@ -37,7 +41,18 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
         let tempCanvas: number = this.props.value;
         let MaxValCanvas: number = this.props.maxVal - 1;
-        
+        const valueTime = parseIsoDate(this.props.timestamp);
+        let unvaluedTimeStamp: boolean = (this.props.timestamp === "0000-00-00T00:00:00Z")
+        let expired: boolean = valueTime ? ((new Date().getTime() - valueTime.getTime()) > (5 * 60 * 1000)) : true; // Expired if older than 10 minutes or invalid date
+
+        this.bgClassName = "bg-lightgray";
+        if (unvaluedTimeStamp) {
+            this.bgClassName = "bg-warning";
+            }
+        else if (expired) {
+            this.bgClassName = "bg-danger";
+        }
+
         if (this.props.value > MaxValCanvas)
         {
             tempCanvas = MaxValCanvas;
@@ -104,12 +119,18 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
             }
         }
+
+        function parseIsoDate(isoString: string): Date | null {
+            const date = new Date(isoString);
+            return isNaN(date.getTime()) ? null : date;
+        }
     }
+
 
     render() {
         return (
             <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
-                <center><div style={{ minHeight: "25px" }} className="bg-lightgray rounded text-dark" >{this.props.caption}</div></center>
+                <center><div style={{ minHeight: "25px" }} className={`${this.bgClassName} rounded text-dark`} >{this.props.caption}</div></center>
                 <div className="device-ui" style={{ height: "132px" }}>
                     <canvas ref={this.canvas}  />
                 </div>

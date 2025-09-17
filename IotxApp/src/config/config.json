@@ -1,5 +1,5 @@
   {
-    "wsDatabaseUrl": "http://localhost:3000",
+    "wsDatabaseUrl": "http://192.168.1.107:3000",
     "wsDatabaseUrlRemote": "http://starniell72.ddns.net:5722",
     "mqttServer": "ws://starniell72.ddns.net:5723",
     "mqttClientId": "iotxClient01",

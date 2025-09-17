@@ -32,7 +32,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
             break;
 
         case "sensor":
-            content = <SimpleCanvas value={state} text={`${value2?.toString() ?? ""}${unit2 ? " " + unit2 : ""}`} caption={device.title !== "" ? device.title : "Sensor"} minVal={device.min} maxVal={device.max} rangeValues={[device.max, (device.max * 0.6), (device.max / 2), (device.max * 0.34), (device.max * 0.3)]} rangeColors={['red', 'orange', 'green', 'orange', '#0d6efd']} />;
+            content = <SimpleCanvas value={state} timestamp={device.timestamp} text={`${value2?.toString() ?? ""}${unit2 ? " " + unit2 : ""}`} caption={device.title !== "" ? device.title : "Sensor"} minVal={device.min} maxVal={device.max} rangeValues={[device.max, (device.max * 0.6), (device.max / 2), (device.max * 0.34), (device.max * 0.3)]} rangeColors={['red', 'orange', 'green', 'orange', '#0d6efd']} />;
             break;
 
         case "contact":

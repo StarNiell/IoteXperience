@@ -16,6 +16,7 @@ const Dashboard: React.FC = () => {
     const {dashboardId } = useParams<{ dashboardId: string }>();
     const {setAuth, setUser, user, dashboards } = useAuth();
     const {deviceList, checkMqttConnection } = useMqtt();
+    //const {deviceList } = useMqtt();
     const [dashboard, setDashboard] = useState<DashboardModel | null>(null);
     const [mergedDevices, setMergedDevices] = useState<DeviceModel[]>([]);
     const [showError, setShowError] = useState(false);
@@ -98,7 +99,7 @@ const Dashboard: React.FC = () => {
         if (id > 0) {
             const data = await ApiCalls({ token, id }, `${config.wsDatabaseUrl}/getdashboard`, "get", setAuth, setUser);
             if (data?.error) {
-                console.log(data.error.message);
+                //console.log(data.error.message);
                 setErrorMessage(data.error.message);
                 setShowError(true);
             } else {
@@ -190,3 +191,4 @@ const Dashboard: React.FC = () => {
     );
 }
 export default Dashboard;
+
