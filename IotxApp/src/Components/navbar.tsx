@@ -22,7 +22,7 @@ function Navbar() {
 
     return (
         <>
-            <div className='d-flex rounded justify-content-between' style={{ backgroundColor: '#111111', paddingLeft: '5px', paddingRight: '5px' }}>
+            <div className='d-flex rounded justify-content-between sticky-top' style={{ backgroundColor: '#111111', paddingLeft: '5px', paddingRight: '5px' }}>
                 <nav className="navbar navbar-expand-lg navbar-dark bg-dark w-100">
                     <div className="container-fluid">
                         <NavLink to="/" className="navbar-brand"><img src={iotxLogo} alt="iotx logo" height={'40px'} /></NavLink>

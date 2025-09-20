@@ -108,6 +108,11 @@ const DeviceListMqttDB: React.FC<{}> = () => {
         return mergedDevices;
     };
 
+    function parseIsoDate(isoString: string): Date | null {
+        const date = new Date(isoString);
+        return isNaN(date.getTime()) ? null : date;
+    }
+
     var dList = mergeDevices(deviceList, deviceDBList);
 
     //var token = user?.data?.Token;
@@ -122,12 +127,11 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                             <thead>
                                 <tr>
                                     <th>Title</th>
-                                    <th>Topic</th>
                                     <th>device_id</th>
                                     <th>type</th>
                                     <th>value</th>
                                     <th>value2</th>
-                                    <th>subscription</th>
+                                    <th>Timestamp</th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -136,11 +140,10 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                     <tr key={index}>
                                         <td>{device.title}</td>
                                         <td>{device.topic}</td>
-                                        <td>{device.device_id}</td>
                                         <td>{device.type}</td>
                                         <td>{device.value} {device.unit==="state" ? "" : device.unit }</td>
                                         <td>{device.value2} {device.unit2==="state" ? "" : device.unit2 }</td>
-                                        <td>{device.subscription}</td>
+                                        <td style={{ fontSize: "0.8em" }}>{parseIsoDate(device.timestamp)?.toLocaleString()}</td>
                                         <td style={{ minWidth: "200px" }}>
                                             {device.id === 0 ? (
                                                 <button onClick={() => handleAddDevice(device)} className='btn btn-primary'>

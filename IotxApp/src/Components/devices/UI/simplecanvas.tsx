@@ -105,16 +105,16 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
                 ctx.stroke();
 
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font="30px Verdana";
+                ctx.font="30px 'BR Cobane'";
                 let textToWrite = Number(sensorValue).toFixed(1) + "°C";
                 let textWidth = ctx.measureText(textToWrite).width / 2;
-                ctx.fillText(textToWrite, width - textWidth, height - 15);
+                ctx.fillText(textToWrite, width - textWidth, height - 24);
 
                 ctx.fillStyle = '#FFFFFF';
-                ctx.font="14px Verdana";
+                ctx.font="18px 'BR Cobane'";
                 let text2ToWrite = text;
                 let text2Width = ctx.measureText(text2ToWrite).width / 2;
-                ctx.fillText(text2ToWrite, width - text2Width, height);
+                ctx.fillText(text2ToWrite, width - text2Width, height - 2);
 
 
             }

@@ -11,18 +11,20 @@ import { useMqtt } from '../Components/mqtt.tsx';
 import { DeviceModel } from '../Components/devices/models/deviceModel.tsx';
 import { StreamModel } from '../Components/devices/models/streamModel.tsx';
 import Stream from '../Components/devices/stream.tsx';
+//import { usePageActive } from "../hooks/usePageActive";
 
 const Dashboard: React.FC = () => {
     const {dashboardId } = useParams<{ dashboardId: string }>();
     const {setAuth, setUser, user, dashboards } = useAuth();
-    const {deviceList, checkMqttConnection } = useMqtt();
-    //const {deviceList } = useMqtt();
+    //const {deviceList, checkMqttConnection } = useMqtt();
+    const {deviceList } = useMqtt();
     const [dashboard, setDashboard] = useState<DashboardModel | null>(null);
     const [mergedDevices, setMergedDevices] = useState<DeviceModel[]>([]);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
     const [dboards, setDashboards] = useState<DashboardModel[]>([]);
+    //const isPageActive = usePageActive();
 
     if (user?.data?.User === undefined) {
         navigate('/login');
@@ -44,18 +46,14 @@ const Dashboard: React.FC = () => {
         checkDashboard = user?.data?.User.dashboardid.toString();
     }
 
+    /*
     useEffect(() => {
-        const handleFocus = () => {
-            console.log("Window is focused");
-            checkMqttConnection(); // Controlla la connessione MQTT quando la finestra riceve il focus
-        };
-
-        window.addEventListener('focus', handleFocus);
-
-        return () => {
-            window.removeEventListener('focus', handleFocus);
-        };
-    }, [checkMqttConnection]);
+        if (isPageActive) {
+            console.log("Page activate: check mqtt connection");
+             checkMqttConnection();
+        }
+    }, [isPageActive]);
+    */
 
     useEffect(() => {
         fetchDashboard();

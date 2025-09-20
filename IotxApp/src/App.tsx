@@ -15,17 +15,31 @@ import Dashboard from './Pages/dashboard.tsx';
 import Users from './Pages/users.tsx';
 import Streams from './Pages/streams.tsx';
 import { StreamSrv } from './Components/streamsrv.tsx';
+import { usePageActive } from "./hooks/usePageActive";
+import { useMqtt } from './Components/mqtt.tsx';
+
 
 function App() {
 
   //const { auth } = useAuth();
   const { user, auth, setAuth, setUser } = useAuth();
+  const isPageActive = usePageActive();
+  const {checkMqttConnection } = useMqtt();
 
-    useEffect(() => {
-        if (user?.data?.Token) {
-            StreamSrv.updateProxyConfig(user.data.Token, setAuth, setUser);
-        }
-    }, [user]);
+  //const rand = Math.floor(Math.random() * 100);
+
+  useEffect(() => {
+      if (user?.data?.Token) {
+          StreamSrv.updateProxyConfig(user.data.Token, setAuth, setUser);
+      }
+  }, [user]);
+
+  useEffect(() => {
+      if (isPageActive) {
+          console.log("Page activate: check mqtt connection");
+            checkMqttConnection();
+      }
+  }, [isPageActive]);
 
   return (
     <BrowserRouter>
