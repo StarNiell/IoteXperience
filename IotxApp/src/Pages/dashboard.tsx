@@ -68,6 +68,8 @@ const Dashboard: React.FC = () => {
                 device.id = apiDevice?.id || 0;
                 device.title = apiDevice?.title || '';
                 device.description = apiDevice?.description || '';
+                device.offset = apiDevice?.offset || 0;
+                device.offset2 = apiDevice?.offset2 || 0;
             });
             setMergedDevices(merged);
         }
@@ -109,6 +111,8 @@ const Dashboard: React.FC = () => {
                     device.id = apiDevice?.id || 0;
                     device.title = apiDevice?.title || '';
                     device.description = apiDevice?.description || '';
+                    device.offset = parseFloat(apiDevice?.offset);
+                    device.offset2 = parseFloat(apiDevice?.offset2);
                 });
                 // Workaround when refresh page
                 /*

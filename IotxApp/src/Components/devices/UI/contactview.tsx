@@ -14,8 +14,8 @@ const ContactViewUI: React.FC<{ value: number; caption: string }> = ({value, cap
         <>
             <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
                 <center><div style={{ minHeight: "25px" }} className="bg-lightgray rounded text-dark" >{caption}</div></center>
-                <div className="device-ui" style={{ minHeight: "132px" }}>
-                    <center><h1 className={contactState + " display-1"} style={{ padding: "auto", cursor: 'pointer' }}><FontAwesomeIcon icon={faPlugCircleBolt} /></h1></center>
+                <div className="device-ui" style={{ minHeight: "153px" }}>
+                    <center><span className={contactState + " display-1"} style={{ padding: "auto", cursor: "pointer", fontSize: "80px" }}><FontAwesomeIcon icon={faPlugCircleBolt} /></span></center>
                 </div>
             </div>
         </>

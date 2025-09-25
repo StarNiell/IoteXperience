@@ -127,7 +127,9 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
             title: '',
             description: '',
             position: 0,
-            dashboard_device_id: 0
+            dashboard_device_id: 0,
+            offset: 0,
+            offset2: 0,
           });
           newDeviceList.push(newDevice);
         }

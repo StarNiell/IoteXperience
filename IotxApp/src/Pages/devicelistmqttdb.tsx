@@ -96,6 +96,10 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                     mqttDevices[i].description = dbDevices[j].device_description;
                     mqttDevices[i].min = dbDevices[j].device_min;
                     mqttDevices[i].max = dbDevices[j].device_max;
+                    mqttDevices[i].unit = dbDevices[j].device_unit;
+                    mqttDevices[i].unit2 = dbDevices[j].device_unit2;
+                    mqttDevices[i].offset = dbDevices[j].device_offset;
+                    mqttDevices[i].offset2 = dbDevices[j].device_offset2;
                     mergedDevices.push(mqttDevices[i]);
                     found = true;
                     break;
@@ -129,8 +133,8 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                     <th>Title</th>
                                     <th>device_id</th>
                                     <th>type</th>
-                                    <th>value</th>
-                                    <th>value2</th>
+                                    <th>value (offset)</th>
+                                    <th>value2 (offset2)</th>
                                     <th>Timestamp</th>
                                     <th>Actions</th>
                                 </tr>
@@ -141,8 +145,8 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                         <td>{device.title}</td>
                                         <td>{device.topic}</td>
                                         <td>{device.type}</td>
-                                        <td>{device.value} {device.unit==="state" ? "" : device.unit }</td>
-                                        <td>{device.value2} {device.unit2==="state" ? "" : device.unit2 }</td>
+                                        <td>{device.value} ({Number(device.offset).toFixed(1)}) {device.unit==="state" ? "" : device.unit }</td>
+                                        <td>{device.value2} ({Number(device.offset2).toFixed(1)})  {device.unit2==="state" ? "" : device.unit2 }</td>
                                         <td style={{ fontSize: "0.8em" }}>{parseIsoDate(device.timestamp)?.toLocaleString()}</td>
                                         <td style={{ minWidth: "200px" }}>
                                             {device.id === 0 ? (
@@ -225,6 +229,22 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                     type="number"
                                     value={editDevice.max}
                                     onChange={(e) => setEditDevice({ ...editDevice, max: parseFloat(e.target.value) })}
+                                />
+                            </Form.Group>
+                            <Form.Group controlId="formDeviceOffset">
+                                <Form.Label>Offset</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    value={editDevice.offset}
+                                    onChange={(e) => setEditDevice({ ...editDevice, offset: parseFloat(e.target.value) })}
+                                />
+                            </Form.Group>
+                            <Form.Group controlId="formDeviceOffset">
+                                <Form.Label>Offset2</Form.Label>
+                                <Form.Control
+                                    type="number"
+                                    value={editDevice.offset2}
+                                    onChange={(e) => setEditDevice({ ...editDevice, offset2: parseFloat(e.target.value) })}
                                 />
                             </Form.Group>
                         </Form>

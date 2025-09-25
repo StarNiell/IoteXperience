@@ -9,6 +9,7 @@ interface SimpleCanvasProps {
     maxVal: number;
     rangeValues: number[];
     rangeColors: string[];
+    unit: string;
 }
 
 class SimpleCanvas extends React.Component<SimpleCanvasProps> {
@@ -62,6 +63,8 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
             tempCanvas = this.props.minVal;
         }   
 
+        let unit: string = this.props.unit ?? "°F";
+
         const actualPosition: number = minPosition + (arcRange * (tempCanvas + 1) / this.props.maxVal);
 
 
@@ -106,7 +109,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font="30px 'BR Cobane'";
-                let textToWrite = Number(sensorValue).toFixed(1) + "°C";
+                let textToWrite = Number(sensorValue).toFixed(1) + unit;
                 let textWidth = ctx.measureText(textToWrite).width / 2;
                 ctx.fillText(textToWrite, width - textWidth, height - 24);
 
@@ -131,7 +134,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
         return (
             <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
                 <center><div style={{ minHeight: "25px" }} className={`${this.bgClassName} rounded text-dark`} >{this.props.caption}</div></center>
-                <div className="device-ui" style={{ height: "132px" }}>
+                <div className="device-ui" style={{ height: "153px" }}>
                     <canvas ref={this.canvas}  />
                 </div>
             </div>

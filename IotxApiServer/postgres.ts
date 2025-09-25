@@ -120,9 +120,9 @@ class Postgres {
             if (!ret) {
                 let lastId: number = 0;
                 let sql: string = "INSERT INTO devices("
-                sql += "device_id, device_title, device_description, device_topic, device_subscription, device_type, device_value, device_step, device_min, device_max, device_unit, device_status)"
+                sql += "device_id, device_title, device_description, device_topic, device_subscription, device_type, device_value, device_step, device_min, device_max, device_unit, device_status, device_unit2, device_value2, device_offset, device_offset2) "
                 sql += "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);"
-                await connection.query(sql, [device.device_id, device.title, device.description, device.topic, device.subscription, device.type, device.value, device.step, device.min, device.max, device.unit, device.status]);
+                await connection.query(sql, [device.device_id, device.title, device.description, device.topic, device.subscription, device.type, device.value, device.step, device.min, device.max, device.unit, device.status, device.value2, device.unit2, device.offset, device.offset2]);
                 var res
                 if (res = await connection.query("SELECT MAX(id) as id FROM devices")) {
                     lastId = res.rows[0].id;
@@ -233,7 +233,11 @@ class Postgres {
             sql += "	dev.device_max, ";
             sql += "	dev.device_unit, ";
             sql += "	dev.device_status, ";
-            sql += "	dev.device_timestamp ";
+            sql += "	dev.device_timestamp, ";
+            sql += "	dev.device_value2, ";
+            sql += "	dev.device_unit2, ";
+            sql += "	dev.device_offset, ";
+            sql += "	dev.device_offset2 ";
             sql += "FROM ";
             sql += "	devices dev ";
             sql += "ORDER BY dashboard_devices_position; ";
@@ -266,7 +270,11 @@ class Postgres {
                         title: row.device_title,
                         description: row.device_description,
                         position: row.dashboard_devices_position,
-                        dashboard_device_id: row.dashboard_devices_id
+                        dashboard_device_id: row.dashboard_devices_id,
+                        value2: row.value2,
+                        unit2: row.unit2,
+                        offset: row.device_offset,
+                        offset2: row.device_offset2
                     }));
 
                 });
@@ -500,9 +508,11 @@ class Postgres {
             sql += "device_title = ($2), "
             sql += "device_description = ($3), "
             sql += "device_min = ($4), "
-            sql += "device_max = ($5) "
+            sql += "device_max = ($5), "
+            sql += "device_offset = ($6), "
+            sql += "device_offset2 = ($7) "
             sql += "WHERE id = ($1);"
-            await connection.query(sql, [device.id, device.title, device.description, device.min, device.max]);
+            await connection.query(sql, [device.id, device.title, device.description, device.min, device.max, device.offset, device.offset2]);
             ret = true;
 
         }

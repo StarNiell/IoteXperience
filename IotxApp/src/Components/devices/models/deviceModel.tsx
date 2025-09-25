@@ -17,12 +17,14 @@ export class DeviceModel {
   description: string = "";
   position: number = 0;
   dashboard_device_id: number = 0;
+  offset: number = 0;
+  offset2: number = 0;
 
   constructor(obj: {
     id: number, topic: string; device_id: string; timestamp: string, type: string;
     value: number; unit: string, value2: number; unit2: string, subscription: string, status: string;
     step: number, min: number, max: number, title: string, description: string;
-    position: number; dashboard_device_id: number;
+    position: number; dashboard_device_id: number; offset: number; offset2: number;
   }) {
     this.id = obj.id;
     this.topic = obj.topic;
@@ -42,5 +44,7 @@ export class DeviceModel {
     this.description = obj.description;
     this.position = obj.position;
     this.dashboard_device_id = obj.dashboard_device_id;
+    this.offset = obj.offset;
+    this.offset2 = obj.offset2;
   }
 }
