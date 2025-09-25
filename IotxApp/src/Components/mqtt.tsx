@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback } from 'react';
 import mqtt from "mqtt";
 import { DeviceModel } from './devices/models/deviceModel';
 import config from '../config/config';
