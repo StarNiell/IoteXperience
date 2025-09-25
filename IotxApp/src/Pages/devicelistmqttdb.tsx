@@ -145,8 +145,8 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                         <td>{device.title}</td>
                                         <td>{device.topic}</td>
                                         <td>{device.type}</td>
-                                        <td>{device.value} ({Number(device.offset).toFixed(1)}) {device.unit==="state" ? "" : device.unit }</td>
-                                        <td>{device.value2} ({Number(device.offset2).toFixed(1)})  {device.unit2==="state" ? "" : device.unit2 }</td>
+                                        <td>{device.value} {Number(device.offset) !== 0 ? "(" + Number(device.offset).toFixed(1).toString() + ")" : ""} {device.unit==="state" ? "" : device.unit }</td>
+                                        <td>{device.value2} {Number(device.offset) !== 0 ? "(" + Number(device.offset).toFixed(1).toString() + ")" : ""} {device.unit2==="state" ? "" : device.unit2 }</td>
                                         <td style={{ fontSize: "0.8em" }}>{parseIsoDate(device.timestamp)?.toLocaleString()}</td>
                                         <td style={{ minWidth: "200px" }}>
                                             {device.id === 0 ? (
@@ -235,6 +235,7 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                 <Form.Label>Offset</Form.Label>
                                 <Form.Control
                                     type="number"
+                                    step="0.5"
                                     value={editDevice.offset}
                                     onChange={(e) => setEditDevice({ ...editDevice, offset: parseFloat(e.target.value) })}
                                 />
@@ -243,6 +244,7 @@ const DeviceListMqttDB: React.FC<{}> = () => {
                                 <Form.Label>Offset2</Form.Label>
                                 <Form.Control
                                     type="number"
+                                    step="0.5"
                                     value={editDevice.offset2}
                                     onChange={(e) => setEditDevice({ ...editDevice, offset2: parseFloat(e.target.value) })}
                                 />
