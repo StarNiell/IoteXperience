@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useMqtt } from '../Components/mqtt.tsx';
 
 export function usePageActive() {
     const [isActive, setIsActive] = useState(!document.hidden);
@@ -27,6 +28,7 @@ export function usePageActive() {
 
         const handleResume = () => {
             setIsActive(true);
+            console.log("Device resumed from suspension");
         };
 
         const handleFreeze = () => {
@@ -38,6 +40,8 @@ export function usePageActive() {
             const now = Date.now();
             if (now - lastTimeRef.current > 60000) {
                 // salto sospetto (es: lockscreen + resume)
+                console.log("Detected possible resume from suspension");
+                useMqtt().mqttClient?.end(); // Forza riconnessione MQTT
                 setIsActive(true);
             }
             lastTimeRef.current = now;
