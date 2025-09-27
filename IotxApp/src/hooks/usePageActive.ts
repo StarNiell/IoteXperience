@@ -67,19 +67,19 @@ export function usePageActive() {
         }, 15000); // ogni 15s
 
         document.addEventListener("visibilitychange", handleVisibilityChange);
-        window.addEventListener("focus", handleFocus);
-        window.addEventListener("blur", handleBlur);
-        window.addEventListener("pageshow", handlePageShow);
-        window.addEventListener("pagehide", handlePageHide);
+        //window.addEventListener("focus", handleFocus);
+        //window.addEventListener("blur", handleBlur);
+        //window.addEventListener("pageshow", handlePageShow);
+        //window.addEventListener("pagehide", handlePageHide);
         document.addEventListener("resume", handleResume as EventListener);
         document.addEventListener("freeze", handleFreeze as EventListener);
 
         return () => {
             document.removeEventListener("visibilitychange", handleVisibilityChange);
-            window.removeEventListener("focus", handleFocus);
-            window.removeEventListener("blur", handleBlur);
-            window.removeEventListener("pageshow", handlePageShow);
-            window.removeEventListener("pagehide", handlePageHide);
+            //window.removeEventListener("focus", handleFocus);
+            //window.removeEventListener("blur", handleBlur);
+            //window.removeEventListener("pageshow", handlePageShow);
+            //window.removeEventListener("pagehide", handlePageHide);
             document.removeEventListener("resume", handleResume as EventListener);
             document.removeEventListener("freeze", handleFreeze as EventListener);
             clearInterval(interval);
