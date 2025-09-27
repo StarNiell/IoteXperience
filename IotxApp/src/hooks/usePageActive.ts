@@ -8,7 +8,11 @@ export function usePageActive() {
     useEffect(() => {
         const handleVisibilityChange = () => {
             console.log("Document visibility changed");
-            setIsActive(!document.hidden);
+            let status = !document.hidden;
+            if (!status) {
+                useMqtt().mqttClient?.end(); // Forza riconnessione MQTT
+            }
+            setIsActive(status);
         };
 
         const handleFocus = () => {
@@ -18,6 +22,7 @@ export function usePageActive() {
 
         const handleBlur = () => {
             console.log("Window blurred");
+            useMqtt().mqttClient?.end(); // Forza riconnessione MQTT
             setIsActive(false);
         };
 
@@ -28,6 +33,7 @@ export function usePageActive() {
 
         const handlePageHide = () => {
             console.log("Page hidden");
+            useMqtt().mqttClient?.end(); // Forza riconnessione MQTT
             setIsActive(false);
         };
 
@@ -38,6 +44,7 @@ export function usePageActive() {
 
         const handleFreeze = () => {
             console.log("Device frozen (suspended)");
+            useMqtt().mqttClient?.end(); // Forza riconnessione MQTT
             setIsActive(false);
         };
 
