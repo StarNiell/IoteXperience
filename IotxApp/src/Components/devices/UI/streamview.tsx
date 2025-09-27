@@ -1,10 +1,21 @@
 
+import React, { useState, useEffect } from 'react';
 import config from '../../../config/config.ts';
 import { CryptoUtil } from '../../../utils/cryptoutil.ts';
+import { usePageActive } from '../../../hooks/usePageActive.ts';
 
 const StreamViewUI: React.FC<{stream_id: string}> = ({stream_id}) => {
-    const streamProxyUrl = `${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}`;
+    //const streamProxyUrl = `${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}`;
+    const [streamProxyUrl, setStreamProxyUrl] = useState<string>(`${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}`);
+    const isActive = usePageActive(); // importa la funzione isActive dal file usePageActive.ts
 
+     useEffect(() => {
+        if (isActive) { // controlla se isActive è vero
+        console.log("Refresh streamProxyUrl for current stream");
+        setStreamProxyUrl(`${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}`);
+        }
+    }, [isActive, stream_id]);
+    
       return (
         <>
             <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
