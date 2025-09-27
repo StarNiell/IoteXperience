@@ -7,31 +7,37 @@ export function usePageActive() {
 
     useEffect(() => {
         const handleVisibilityChange = () => {
+            console.log("Document visibility changed");
             setIsActive(!document.hidden);
         };
 
         const handleFocus = () => {
+            console.log("Window focused");
             setIsActive(true);
         };
 
         const handleBlur = () => {
+            console.log("Window blurred");
             setIsActive(false);
         };
 
         const handlePageShow = () => {
+            console.log("Page shown");
             setIsActive(true);
         };
 
         const handlePageHide = () => {
+            console.log("Page hidden");
             setIsActive(false);
         };
 
         const handleResume = () => {
-            setIsActive(true);
             console.log("Device resumed from suspension");
+            setIsActive(true);
         };
 
         const handleFreeze = () => {
+            console.log("Device frozen (suspended)");
             setIsActive(false);
         };
 
