@@ -24,7 +24,7 @@ function App() {
   //const { auth } = useAuth();
   const { user, auth, setAuth, setUser } = useAuth();
   const isPageActive = usePageActive();
-  const {checkMqttConnection } = useMqtt();
+  const {checkMqttConnection, endMqttConnection } = useMqtt();
 
   //const rand = Math.floor(Math.random() * 100);
 
@@ -38,7 +38,11 @@ function App() {
   useEffect(() => {
       if (isPageActive) {
           console.log("Page activate: check mqtt connection");
-            checkMqttConnection();
+          checkMqttConnection();
+      }
+      else {
+          console.log("Page not active, end mqtt connection");
+          endMqttConnection();
       }
   }, [isPageActive]);
 

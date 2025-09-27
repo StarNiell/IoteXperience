@@ -10,6 +10,7 @@ const MqttContext = createContext<{
   setDeviceList: React.Dispatch<React.SetStateAction<DeviceModel[] | []>>;
   publishMessage: (topic: string, message: string) => Promise<void>;
   checkMqttConnection: () => Promise<void>;
+  endMqttConnection: () => Promise<void>;
 }>({
   mqttClient: null,
   setMqttClient: () => { },
@@ -17,6 +18,7 @@ const MqttContext = createContext<{
   setDeviceList: () => [],
   publishMessage: async () => { },
   checkMqttConnection: async () => { },
+  endMqttConnection: async () => { },
 });
 
 //export const useMqtt = () => useContext(MqttContext);
@@ -166,7 +168,7 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     if (mqttClient?.connected) {
       console.log('Connessione MQTT attiva');
     } else if (mqttClient) {
-      console.log('Connessione MQTT non disponibile... Reconnessione in corso');
+      console.log('Connessione MQTT non disponibile... Riconnessione in corso');
       mqttClient.reconnect();
     } else {
       console.log('Nessun client MQTT, nuova connessione...' + window.location.href);
@@ -174,8 +176,15 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   };
 
+    const endMqttConnection = async (): Promise<void> => {
+    if (mqttClient?.connected) {
+      mqttClient.end();
+      console.log('Connessione MQTT chiusa');
+    }
+  };
+
   return (
-    <MqttContext.Provider value={{ mqttClient, setMqttClient, deviceList, setDeviceList, publishMessage, checkMqttConnection }}>
+    <MqttContext.Provider value={{ mqttClient, setMqttClient, deviceList, setDeviceList, publishMessage, checkMqttConnection, endMqttConnection }}>
       {children}
     </MqttContext.Provider>
   );
