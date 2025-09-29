@@ -6,13 +6,17 @@ const { spawn } = require("child_process");
 class ProxyStream {
   constructor(deviceUrl) {
     this.deviceUrl = deviceUrl;
-    this.clients = [];
-    this.boundary = null; // per HTTP sarà rilevato, per RTSP fisso
+    this.clients = new Set(); // Usiamo Set per performance
+    this.boundary = null;
+    this.isRunning = false;
+    this.ffmpegProcess = null;
+    this.httpRequest = null;
+    this.reconnectTimeout = null;
+    
     this.startStream();
   }
 
   addClient(res) {
-    // Se il boundary non è pronto per HTTP
     if (!this.boundary && this.deviceUrl.startsWith("http")) {
       res.writeHead(503, { "Content-Type": "text/plain" });
       res.end("Stream non ancora pronto, riprova tra pochi secondi...");
@@ -26,14 +30,29 @@ class ProxyStream {
       "Pragma": "no-cache",
     });
 
-    this.clients.push(res);
+    this.clients.add(res);
 
-    res.on("close", () => {
-      this.clients = this.clients.filter(c => c !== res);
-    });
+    const cleanup = () => {
+      this.clients.delete(res);
+      // Se non ci sono più client, fermiamo lo stream dopo un timeout
+      if (this.clients.size === 0) {
+        setTimeout(() => {
+          if (this.clients.size === 0) {
+            this.stopStream();
+          }
+        }, 30000); // 30 secondi di inattività prima di fermare
+      }
+    };
+
+    res.on("close", cleanup);
+    res.on("end", cleanup);
+    res.on("error", cleanup);
   }
 
   startStream() {
+    if (this.isRunning) return;
+    this.isRunning = true;
+    
     if (this.deviceUrl.startsWith("rtsp://")) {
       this.startRtspStream();
     } else {
@@ -41,116 +60,269 @@ class ProxyStream {
     }
   }
 
-  // 🔹 Gestione RTSP con ffmpeg
-  startRtspStream() {
-    console.log(process.env.PATH);
-    console.log(`Connettendo a stream RTSP: ${this.deviceUrl}`);
-    this.boundary = "--frame";
+  stopStream() {
+    if (!this.isRunning) return;
+    this.isRunning = false;
 
-    const ffmpeg = spawn("ffmpeg", [
-      "-i", this.deviceUrl, // input RTSP
-      "-f", "mjpeg",        // output in MJPEG
-      "-q:v", "5",          // qualità JPEG (1=alta, 31=bassa)
-      "-r", "5",            // frame rate
-      "-an",                // disabilita audio
-      "pipe:1"              // output su stdout
-    ]);
+    // Cleanup timeout
+    if (this.reconnectTimeout) {
+      clearTimeout(this.reconnectTimeout);
+      this.reconnectTimeout = null;
+    }
 
-    let buffer = Buffer.alloc(0);
+    // Ferma FFmpeg
+    if (this.ffmpegProcess) {
+      this.ffmpegProcess.kill('SIGTERM');
+      this.ffmpegProcess = null;
+    }
 
-    ffmpeg.stdout.on("data", (chunk) => {
-      buffer = Buffer.concat([buffer, chunk]);
+    // Ferma richiesta HTTP
+    if (this.httpRequest) {
+      this.httpRequest.destroy();
+      this.httpRequest = null;
+    }
 
-      // separa i frame JPEG (0xFFD8...0xFFD9)
-      let start, end;
-      while ((start = buffer.indexOf(Buffer.from([0xff, 0xd8]))) !== -1 &&
-             (end = buffer.indexOf(Buffer.from([0xff, 0xd9]), start)) !== -1) {
-        const frame = buffer.slice(start, end + 2);
-        buffer = buffer.slice(end + 2);
-
-        this.clients.forEach(c => {
-          c.write(`${this.boundary}\r\n`);
-          c.write("Content-Type: image/jpeg\r\n");
-          c.write(`Content-Length: ${frame.length}\r\n\r\n`);
-          c.write(frame);
-          c.write("\r\n");
-        });
-      }
-    });
-
-    ffmpeg.stderr.on("data", (data) => {
-      // utile per debug
-      // console.log("ffmpeg:", data.toString());
-    });
-
-    ffmpeg.on("close", (code) => {
-      console.log(`ffmpeg terminato con codice ${code}, riavvio tra 5s...`);
-      setTimeout(() => this.startRtspStream(), 5000);
-    });
+    console.log(`Stream ${this.deviceUrl} fermato`);
   }
 
-  // 🔹 Gestione HTTP/MJPEG (codice originale adattato)
+  // 🔹 Gestione RTSP con ffmpeg migliorata
+  startRtspStream() {
+    if (!this.isRunning) return;
+
+    console.log(`Avvio stream RTSP: ${this.deviceUrl}`);
+    this.boundary = "--frame";
+
+    try {
+      this.ffmpegProcess = spawn("ffmpeg", [
+        "-i", this.deviceUrl,
+        "-f", "mjpeg",
+        "-q:v", "5",
+        "-r", "5",
+        "-an",
+        "-fflags", "nobuffer",
+        "-flags", "low_delay",
+        "-max_delay", "1000000",
+        "pipe:1"
+      ], {
+        stdio: ['ignore', 'pipe', 'pipe']
+      });
+
+      let buffer = Buffer.alloc(0);
+      let frameCount = 0;
+      const maxBufferSize = 10 * 1024 * 1024; // 10MB max
+
+      this.ffmpegProcess.stdout.on("data", (chunk) => {
+        if (!this.isRunning) return;
+        
+        buffer = Buffer.concat([buffer, chunk]);
+
+        // Prevenire memory leak per buffer troppo grandi
+        if (buffer.length > maxBufferSize) {
+          console.warn("Buffer troppo grande, reset");
+          buffer = Buffer.alloc(0);
+          return;
+        }
+
+        // Separazione frame JPEG
+        let start, end;
+        while ((start = buffer.indexOf(Buffer.from([0xff, 0xd8]))) !== -1 &&
+               (end = buffer.indexOf(Buffer.from([0xff, 0xd9]), start)) !== -1) {
+          
+          const frame = buffer.slice(start, end + 2);
+          buffer = buffer.slice(end + 2);
+          frameCount++;
+
+          // Invia solo se ci sono client connessi
+          if (this.clients.size > 0) {
+            this.clients.forEach(client => {
+              if (!client.destroyed && !client.finished) {
+                try {
+                  client.write(`${this.boundary}\r\n`);
+                  client.write("Content-Type: image/jpeg\r\n");
+                  client.write(`Content-Length: ${frame.length}\r\n\r\n`);
+                  client.write(frame);
+                  client.write("\r\n");
+                } catch (err) {
+                  console.warn("Errore scrittura client, rimuovo");
+                  this.clients.delete(client);
+                }
+              } else {
+                this.clients.delete(client);
+              }
+            });
+          }
+
+          // Pulizia client morti
+          this.cleanupDeadClients();
+        }
+      });
+
+      this.ffmpegProcess.stderr.on("data", (data) => {
+        if (this.isRunning) {
+          const message = data.toString();
+          // Log solo errori importanti
+          if (message.includes("error") || message.includes("Error") || 
+              message.includes("failed") || message.includes("Unable")) {
+            console.error("FFmpeg error:", message);
+          }
+        }
+      });
+
+      this.ffmpegProcess.on("close", (code) => {
+        if (this.ffmpegProcess) {
+          console.log(`FFmpeg terminato con codice ${code}`);
+          this.ffmpegProcess = null;
+        }
+
+        // Riavvia solo se necessario e se ci sono client
+        if (this.isRunning && this.clients.size > 0) {
+          console.log("Riavvio FFmpeg in 3 secondi...");
+          this.reconnectTimeout = setTimeout(() => {
+            if (this.isRunning && this.clients.size > 0) {
+              this.startRtspStream();
+            }
+          }, 3000);
+        } else {
+          this.isRunning = false;
+        }
+      });
+
+      this.ffmpegProcess.on("error", (err) => {
+        console.error("Errore spawn FFmpeg:", err);
+      });
+
+    } catch (error) {
+      console.error("Errore avvio FFmpeg:", error);
+      this.stopStream();
+    }
+  }
+
+  // 🔹 Gestione HTTP/MJPEG migliorata
   startHttpStream() {
+    if (!this.isRunning) return;
+
     const parsed = url.parse(this.deviceUrl);
     const lib = parsed.protocol === "https:" ? https : http;
 
     const connect = () => {
+      if (!this.isRunning) return;
+
       console.log(`Connettendo a ${this.deviceUrl}...`);
-      const request = lib.get(this.deviceUrl, (res) => {
-        if (!this.boundary && res.headers["content-type"]) {
-          const ct = res.headers["content-type"];
-          const match = ct.match(/boundary=([^\s;]+)/i);
-          if (match) {
-            this.boundary = match[1].startsWith("--") ? match[1] : "--" + match[1];
-            console.log(`Boundary rilevato automaticamente: ${this.boundary}`);
-          } else {
-            console.warn("Impossibile rilevare il boundary dagli header!");
-            this.boundary = "--frame";
+      
+      try {
+        this.httpRequest = lib.get(this.deviceUrl, (res) => {
+          if (!this.boundary && res.headers["content-type"]) {
+            const ct = res.headers["content-type"];
+            const match = ct.match(/boundary=([^\s;]+)/i);
+            if (match) {
+              this.boundary = match[1].startsWith("--") ? match[1] : "--" + match[1];
+              console.log(`Boundary rilevato: ${this.boundary}`);
+            } else {
+              this.boundary = "--frame";
+            }
           }
-        }
 
-        let buffer = Buffer.alloc(0);
-        const boundaryBuffer = Buffer.from(this.boundary || "--frame");
+          let buffer = Buffer.alloc(0);
+          const boundaryBuffer = Buffer.from(this.boundary || "--frame");
 
-        res.on("data", chunk => {
-          buffer = Buffer.concat([buffer, chunk]);
+          res.on("data", chunk => {
+            if (!this.isRunning) return;
+            
+            buffer = Buffer.concat([buffer, chunk]);
 
-          let boundaryIndex;
-          while ((boundaryIndex = buffer.indexOf(boundaryBuffer)) !== -1) {
-            const part = buffer.slice(0, boundaryIndex);
-            buffer = buffer.slice(boundaryIndex + boundaryBuffer.length);
+            let boundaryIndex;
+            while ((boundaryIndex = buffer.indexOf(boundaryBuffer)) !== -1) {
+              const part = buffer.slice(0, boundaryIndex);
+              buffer = buffer.slice(boundaryIndex + boundaryBuffer.length);
 
-            if (part.length > 0) {
-              const headerEnd = part.indexOf("\r\n\r\n");
-              if (headerEnd !== -1) {
-                const jpegData = part.slice(headerEnd + 4);
-                if (jpegData.length > 0) {
-                  this.clients.forEach(c => {
-                    c.write(`${this.boundary}\r\n`);
-                    c.write("Content-Type: image/jpeg\r\n");
-                    c.write(`Content-Length: ${jpegData.length}\r\n\r\n`);
-                    c.write(jpegData);
-                    c.write("\r\n");
-                  });
+              if (part.length > 0) {
+                const headerEnd = part.indexOf("\r\n\r\n");
+                if (headerEnd !== -1) {
+                  const jpegData = part.slice(headerEnd + 4);
+                  if (jpegData.length > 0 && this.clients.size > 0) {
+                    this.clients.forEach(client => {
+                      if (!client.destroyed && !client.finished) {
+                        try {
+                          client.write(`${this.boundary}\r\n`);
+                          client.write("Content-Type: image/jpeg\r\n");
+                          client.write(`Content-Length: ${jpegData.length}\r\n\r\n`);
+                          client.write(jpegData);
+                          client.write("\r\n");
+                        } catch (err) {
+                          this.clients.delete(client);
+                        }
+                      } else {
+                        this.clients.delete(client);
+                      }
+                    });
+                    
+                    this.cleanupDeadClients();
+                  }
                 }
               }
             }
+          });
+
+          res.on("end", () => {
+            if (this.isRunning) {
+              console.log(`Stream HTTP terminato, riconnessione...`);
+              this.reconnectTimeout = setTimeout(connect, 2000);
+            }
+          });
+
+          res.on("error", (err) => {
+            if (this.isRunning) {
+              console.error(`Errore risposta HTTP: ${err.message}`);
+              this.reconnectTimeout = setTimeout(connect, 5000);
+            }
+          });
+        });
+
+        this.httpRequest.on("error", (err) => {
+          if (this.isRunning) {
+            console.error(`Errore connessione HTTP: ${err.message}`);
+            this.reconnectTimeout = setTimeout(connect, 5000);
           }
         });
 
-        res.on("end", () => {
-          console.log(`Stream terminato da ${this.deviceUrl}. Riconnessione...`);
-          setTimeout(connect, 2000);
+        this.httpRequest.on("close", () => {
+          if (this.isRunning && this.clients.size > 0) {
+            this.reconnectTimeout = setTimeout(connect, 2000);
+          }
         });
-      });
 
-      request.on("error", (err) => {
-        console.error(`Errore di connessione a ${this.deviceUrl}: ${err.message}`);
-        setTimeout(connect, 5000);
-      });
+      } catch (error) {
+        console.error("Errore connessione HTTP:", error);
+        if (this.isRunning) {
+          this.reconnectTimeout = setTimeout(connect, 5000);
+        }
+      }
     };
 
     connect();
+  }
+
+  cleanupDeadClients() {
+    this.clients.forEach(client => {
+      if (client.destroyed || client.finished || client.writableEnded) {
+        this.clients.delete(client);
+      }
+    });
+  }
+
+  // Metodo per cleanup completo
+  destroy() {
+    this.stopStream();
+    
+    // Chiudi tutti i client
+    this.clients.forEach(client => {
+      if (!client.destroyed) {
+        client.end();
+      }
+    });
+    this.clients.clear();
+    
+    console.log(`ProxyStream per ${this.deviceUrl} distrutto`);
   }
 }
 
