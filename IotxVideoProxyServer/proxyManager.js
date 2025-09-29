@@ -94,15 +94,12 @@ class ProxyStream {
 
     try {
       this.ffmpegProcess = spawn("ffmpeg", [
-        "-i", this.deviceUrl,
-        "-f", "mjpeg",
-        "-q:v", "5",
-        "-r", "5",
-        "-an",
-        "-fflags", "nobuffer",
-        "-flags", "low_delay",
-        "-max_delay", "1000000",
-        "pipe:1"
+        "-i", this.deviceUrl, // input RTSP
+        "-f", "mjpeg",        // output in MJPEG
+        "-q:v", "5",          // qualità JPEG (1=alta, 31=bassa)
+        "-r", "5",            // frame rate
+        "-an",                // disabilita audio
+        "pipe:1"              // output su stdout
       ], {
         stdio: ['ignore', 'pipe', 'pipe']
       });
