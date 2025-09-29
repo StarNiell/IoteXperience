@@ -64,75 +64,99 @@ app.listen(port, () => {
 });
 
 function addStreams() {
-  // Aggiungi nuovi proxy
   for (const [id, url] of Object.entries(deviceMap)) {
     if (!proxies[id]) {
-      proxies[id] = new ProxyStream(url);
-
-      app.get(`/stream/${id}`, (req, res) => {
-        const token = req.query.token;
-        const trusted = req.query.trusted;
-        
-        console.log(`Richiesta stream per ${id} da ${url} con token ${token} o trusted ${trusted}`);
-        
-        // Validazione
-        if (!token && !trusted) {
-          return res.status(401).send("Token mancante");
-        }
-        
-        if (token && !CryptoUtil.isTokenValid(token)) {
-          return res.status(403).send("Token non valido");
-        }
-
-        if (trusted && trusted !== 'IotxTrusted') {
-          return res.status(403).send("Trusted non valido");
-        }
-
-        // Aggiungi il client allo stream
-        proxies[id].addClient(res);
-      });
+      proxies[id] = {
+        proxy: new ProxyStream(url),
+        lastClientActivity: Date.now(),
+        isPermanent: false // Imposta a true per stream che devono rimanere sempre attivi
+      };
     }
-  }
-}
 
-// Cleanup automatico degli stream inattivi
-function startCleanupInterval() {
-  setInterval(() => {
-    for (const [id, proxy] of Object.entries(proxies)) {
-      // Se non ci sono client connessi da più di 1 minuto, distruggi il proxy
-      if (proxy.clients.size === 0 && proxy.isRunning) {
-        console.log(`Nessun client per stream ${id}, verifico se fermare...`);
-        
-        // Opzione 1: Ferma immediatamente lo stream ma mantieni il proxy
-        proxy.stopStream();
-        
-        // Opzione 2: Se vuoi eliminare completamente il proxy dopo più tempo:
-        // if (Date.now() - proxy.lastActivity > 300000) { // 5 minuti
-        //   console.log(`Eliminazione proxy inattivo: ${id}`);
-        //   proxy.destroy();
-        //   delete proxies[id];
-        // }
+    app.get(`/stream/${id}`, (req, res) => {
+      const token = req.query.token;
+      const trusted = req.query.trusted;
+      
+      // Validazione (come prima)
+      if (!token && !trusted) {
+        return res.status(401).send("Token mancante");
       }
-    }
-  }, 60000); // Controlla ogni minuto
+      
+      if (token && !CryptoUtil.isTokenValid(token)) {
+        return res.status(403).send("Token non valido");
+      }
+
+      if (trusted && trusted !== 'IotxTrusted') {
+        return res.status(403).send("Trusted non valido");
+      }
+
+      // Aggiorna l'ultima attività
+      proxies[id].lastClientActivity = Date.now();
+      
+      // Riavvia lo stream se era fermo
+      if (!proxies[id].proxy.isRunning) {
+        console.log(`Riavvio stream ${id} per nuova richiesta`);
+        proxies[id].proxy.startStream();
+      }
+
+      // Aggiungi il client
+      proxies[id].proxy.addClient(res);
+    });
+  }
 }
 
-// Avvia il cleanup
-startCleanupInterval();
+// Cleanup ottimizzato
+function startOptimizedCleanup() {
+  setInterval(() => {
+    const now = Date.now();
+    
+    for (const [id, streamInfo] of Object.entries(proxies)) {
+      const { proxy, lastClientActivity, isPermanent } = streamInfo;
+      
+      // Se non è permanente e non ci sono client da più di 2 minuti
+      if (!isPermanent && proxy.clients.size === 0 && 
+          now - lastClientActivity > 120000) { // 2 minuti
+        console.log(`Fermo stream inattivo: ${id}`);
+        proxy.stopStream();
+      }
+      
+      // Pulizia client "zombie" (sempre utile)
+      proxy.cleanupDeadClients();
+    }
+  }, 30000); // Controlla ogni 30 secondi
+}
 
-// Gestione graceful shutdown
-process.on('SIGINT', () => {
-  console.log('Chiusura graceful di tutti gli stream...');
-  for (const [id, proxy] of Object.entries(proxies)) {
-    proxy.destroy();
+// Per forzare la chiusura di uno stream specifico
+function closeStream(id) {
+  if (proxies[id]) {
+    console.log(`Chiusura forzata stream: ${id}`);
+    proxies[id].proxy.destroy();
+    delete proxies[id];
   }
-  process.exit(0);
-});
+}
 
-process.on('SIGTERM', () => {
-  console.log('Terminazione di tutti gli stream...');
-  for (const [id, proxy] of Object.entries(proxies)) {
-    proxy.destroy();
+// Per riavviare uno stream specifico
+function restartStream(id) {
+  if (proxies[id]) {
+    console.log(`Riavvio forzato stream: ${id}`);
+    proxies[id].proxy.stopStream();
+    setTimeout(() => {
+      proxies[id].proxy.startStream();
+    }, 1000);
   }
-  process.exit(0);
-});
+}
+
+// Statistiche degli stream
+function getStreamStats() {
+  const stats = {};
+  for (const [id, streamInfo] of Object.entries(proxies)) {
+    const { proxy, lastClientActivity } = streamInfo;
+    stats[id] = {
+      clients: proxy.clients.size,
+      isRunning: proxy.isRunning,
+      lastActivity: new Date(lastClientActivity).toISOString(),
+      uptime: proxy.isRunning ? Date.now() - proxy.startTime : 0
+    };
+  }
+  return stats;
+}
