@@ -17,36 +17,40 @@ class ProxyStream {
   }
 
   addClient(res) {
-    if (!this.boundary && this.deviceUrl.startsWith("http")) {
-      res.writeHead(503, { "Content-Type": "text/plain" });
-      res.end("Stream non ancora pronto, riprova tra pochi secondi...");
-      return;
-    }
+    const waitForBoundary = (attempts = 0) => {
+      if (this.boundary || !this.deviceUrl.startsWith("http")) {
+        res.writeHead(200, {
+          "Content-Type": `multipart/x-mixed-replace; boundary=${this.boundary || "--frame"}`,
+          "Cache-Control": "no-cache",
+          "Connection": "close",
+          "Pragma": "no-cache",
+        });
 
-    res.writeHead(200, {
-      "Content-Type": `multipart/x-mixed-replace; boundary=${this.boundary || "--frame"}`,
-      "Cache-Control": "no-cache",
-      "Connection": "close",
-      "Pragma": "no-cache",
-    });
+        this.clients.add(res);
 
-    this.clients.add(res);
-
-    const cleanup = () => {
-      this.clients.delete(res);
-      // Se non ci sono più client, fermiamo lo stream dopo un timeout
-      if (this.clients.size === 0) {
-        setTimeout(() => {
+        const cleanup = () => {
+          this.clients.delete(res);
           if (this.clients.size === 0) {
-            this.stopStream();
+            setTimeout(() => {
+              if (this.clients.size === 0) {
+                this.stopStream();
+              }
+            }, 30000);
           }
-        }, 30000); // 30 secondi di inattività prima di fermare
+        };
+
+        res.on("close", cleanup);
+        res.on("end", cleanup);
+        res.on("error", cleanup);
+      } else if (attempts < 10) { // 10 tentativi da 500ms = 5 secondi
+        setTimeout(() => waitForBoundary(attempts + 1), 500);
+      } else {
+        res.writeHead(503, { "Content-Type": "text/plain" });
+        res.end("Stream non ancora pronto, riprova tra pochi secondi...");
       }
     };
 
-    res.on("close", cleanup);
-    res.on("end", cleanup);
-    res.on("error", cleanup);
+    waitForBoundary();
   }
 
   startStream() {
