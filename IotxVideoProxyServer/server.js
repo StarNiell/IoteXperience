@@ -1,6 +1,5 @@
 const express = require('express');
-const cors = require('cors'); 
-const fs = require('fs');
+const cors = require('cors');
 const ProxyStream = require('./proxyManager');
 const CryptoUtil = require('./cryptoutil');
 const config = require('./config');
@@ -8,124 +7,109 @@ const config = require('./config');
 const app = express();
 const port = 3002;
 
-//const deviceMap = JSON.parse(fs.readFileSync('./devices.json', 'utf-8'));
-app.use(express.json()); // Per gestire JSON nel body delle richieste
+app.use(express.json());
 app.use(cors());
-let deviceMap = {};
-let deviceFixed = config.fixedStreams;
 
+let deviceMap = {};
+let deviceFixed = config.fixedStreams || {};
 const proxies = {};
 
 // Endpoint per aggiornare la configurazione dei device
 app.post('/config', (req, res) => {
-  let tokenValid = req.body.tokenValid;
-
-  if (CryptoUtil.isTokenValid(tokenValid) === false) {
+  const tokenValid = req.body.tokenValid;
+  if (!CryptoUtil.isTokenValid(tokenValid)) {
     console.log('Configurazione in entrata con token non valido:', tokenValid);
     return res.status(403).json({ error: 'Token non valido' });
-  } 
-  let configMap = req.body.streams; // Aggiorna la mappa dei device
-  //deviceMap = configMap;
+  }
 
-  console.log('Configurazione in entrata con token valido:', tokenValid);
+  const configMap = req.body.streams || {};
+  deviceMap = { ...configMap, ...deviceFixed };
 
-  if (deviceMap)
-  {
-    // Rimuovi vecchi proxy
-    for (const id in proxies) {
-      if (!deviceMap[id]) {
-        proxies[id].close && proxies[id].close(); // Chiudi eventuali stream/proxy
-        delete proxies[id];
-      }
+  // Rimuovi vecchi proxy non più presenti
+  for (const id in proxies) {
+    if (!deviceMap[id]) {
+      proxies[id].proxy.stopStream();
+      delete proxies[id];
     }
   }
 
-  deviceMap = { ...configMap, ...deviceFixed };
-  console.log('Lista Streams:', deviceMap);
-  
-  // Aggiungi nuovi proxy
-  addStreams();
-
-  res.json({ success: true, devices: Object.keys(configMap) });
+  console.log('Lista Streams aggiornata:', deviceMap);
+  res.json({ success: true, devices: Object.keys(deviceMap) });
 });
 
+// Route unica per tutti gli stream
+app.get('/stream/:id', (req, res) => {
+  const { id } = req.params;
+  const token = req.query.token;
+  const trusted = req.query.trusted;
 
+  // Validazione
+  if (!token && !trusted) {
+    return res.status(401).send("Token mancante");
+  }
+  if (token && !CryptoUtil.isTokenValid(token)) {
+    return res.status(403).send("Token non valido");
+  }
+  if (trusted && trusted !== 'IotxTrusted') {
+    return res.status(403).send("Trusted non valido");
+  }
+
+  // Verifica che lo stream esista
+  if (!deviceMap[id]) {
+    return res.status(404).send("Stream non trovato");
+  }
+
+  // Crea ProxyStream solo se non esiste
+  if (!proxies[id]) {
+    proxies[id] = {
+      proxy: new ProxyStream(deviceMap[id]),
+      lastClientActivity: Date.now(),
+      isPermanent: false
+    };
+  }
+
+  // Aggiorna attività
+  proxies[id].lastClientActivity = Date.now();
+
+  // Avvia lo stream solo se non è già attivo
+  if (!proxies[id].proxy.isRunning) {
+    proxies[id].proxy.startStream();
+  }
+
+  // Aggiungi il client
+  proxies[id].proxy.addClient(res);
+});
+
+// Elenco stream disponibili
 app.get('/streams', (req, res) => {
   res.send(`<h2>Stream disponibili:</h2>
-    <ul>${Object.keys(proxies).map(id => `<li>${id}</li>`).join('')}</ul>`);
+    <ul>${Object.keys(deviceMap).map(id => `<li>${id}</li>`).join('')}</ul>`);
 });
 
+// Avvio server
 app.listen(port, () => {
   console.log(`Video proxy server in ascolto su http://localhost:${port}`);
-  deviceMap = deviceFixed; 
+  deviceMap = { ...deviceFixed };
   console.log('Lista Fixed Streams:', deviceMap);
-  addStreams();
   startOptimizedCleanup();
 });
-
-function addStreams() {
-  for (const [id, url] of Object.entries(deviceMap)) {
-    if (!proxies[id]) {
-      proxies[id] = {
-        proxy: new ProxyStream(url),
-        lastClientActivity: Date.now(),
-        isPermanent: false // Imposta a true per stream che devono rimanere sempre attivi
-      };
-    }
-
-    app.get(`/stream/${id}`, (req, res) => {
-      const token = req.query.token;
-      const trusted = req.query.trusted;
-      
-      // Validazione (come prima)
-      if (!token && !trusted) {
-        return res.status(401).send("Token mancante");
-      }
-      
-      if (token && !CryptoUtil.isTokenValid(token)) {
-        return res.status(403).send("Token non valido");
-      }
-
-      if (trusted && trusted !== 'IotxTrusted') {
-        return res.status(403).send("Trusted non valido");
-      }
-
-      // Aggiorna l'ultima attività
-      proxies[id].lastClientActivity = Date.now();
-      
-      // Riavvia lo stream se era fermo
-      if (!proxies[id].proxy.isRunning) {
-        console.log(`Riavvio stream ${id} per nuova richiesta`);
-        proxies[id].proxy.startStream();
-      }
-
-      // Aggiungi il client
-      proxies[id].proxy.addClient(res);
-    });
-  }
-}
 
 // Cleanup ottimizzato
 function startOptimizedCleanup() {
   setInterval(() => {
     const now = Date.now();
-    
     for (const [id, streamInfo] of Object.entries(proxies)) {
       const { proxy, lastClientActivity, isPermanent } = streamInfo;
-      
-      // Se non è permanente e non ci sono client da più di 2 minuti
-      if (!isPermanent && proxy.clients.size === 0 && 
-          now - lastClientActivity > 120000) { // 2 minuti
+      if (!isPermanent && proxy.clients.size === 0 && now - lastClientActivity > 120000) {
         console.log(`Fermo stream inattivo: ${id}`);
         proxy.stopStream();
+        delete proxies[id];
       }
-      
-      // Pulizia client "zombie" (sempre utile)
       proxy.cleanupDeadClients();
     }
-  }, 30000); // Controlla ogni 30 secondi
+  }, 30000);
 }
-
+/*
 // Per forzare la chiusura di uno stream specifico
 function closeStream(id) {
   if (proxies[id]) {
@@ -160,3 +144,4 @@ function getStreamStats() {
   }
   return stats;
 }
+  */
