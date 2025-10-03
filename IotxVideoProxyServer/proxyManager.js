@@ -99,6 +99,7 @@ class ProxyStream {
     try {
       this.ffmpegProcess = spawn("ffmpeg", [
         "-i", this.deviceUrl, // input RTSP
+        "-vf", "scale=1050:600:force_original_aspect_ratio=increase,pad=1050:600:(ow-iw)/2:(oh-ih)/2", // ridimensiona larghezza a 1050px
         "-f", "mjpeg",        // output in MJPEG
         "-q:v", "5",          // qualità JPEG (1=alta, 31=bassa)
         "-r", "5",            // frame rate
