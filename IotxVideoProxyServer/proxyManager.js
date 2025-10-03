@@ -99,7 +99,7 @@ class ProxyStream {
     try {
       this.ffmpegProcess = spawn("ffmpeg", [
         "-i", this.deviceUrl,
-        "-vf", "scale=1050:600:force_original_aspect_ratio=increase,pad=1050:600:(ow-iw)/2:(oh-ih)/2",
+        "-vf", "scale=1050:600:force_original_aspect_ratio=decrease",
         "-pix_fmt", "yuvj422p",
         "-f", "mjpeg",
         "-q:v", "5",
@@ -109,7 +109,7 @@ class ProxyStream {
       ], {
         stdio: ['ignore', 'pipe', 'pipe']
       });
-      
+
       let buffer = Buffer.alloc(0);
       let frameCount = 0;
       const maxBufferSize = 10 * 1024 * 1024; // 10MB max
