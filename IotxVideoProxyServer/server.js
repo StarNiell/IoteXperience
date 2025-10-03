@@ -109,7 +109,50 @@ function startOptimizedCleanup() {
     }
   }, 30000);
 }
-/*
+
+
+// Endpoint per forzare la chiusura di uno stream specifico
+app.post('/stream/:id/close', (req, res) => {
+  const { id } = req.params;
+  if (proxies[id]) {
+    console.log(`Chiusura forzata stream: ${id}`);
+    proxies[id].proxy.destroy && proxies[id].proxy.destroy();
+    proxies[id].proxy.stopStream();
+    delete proxies[id];
+    return res.json({ success: true, message: `Stream ${id} chiuso` });
+  }
+  res.status(404).json({ error: 'Stream non trovato' });
+});
+
+// Endpoint per riavviare uno stream specifico
+app.post('/stream/:id/restart', (req, res) => {
+  const { id } = req.params;
+  if (proxies[id]) {
+    console.log(`Riavvio forzato stream: ${id}`);
+    proxies[id].proxy.stopStream();
+    setTimeout(() => {
+      proxies[id].proxy.startStream();
+    }, 1000);
+    return res.json({ success: true, message: `Stream ${id} riavviato` });
+  }
+  res.status(404).json({ error: 'Stream non trovato' });
+});
+
+// Endpoint per statistiche degli stream
+app.get('/streamstats', (req, res) => {
+  const stats = {};
+  for (const [id, streamInfo] of Object.entries(proxies)) {
+    const { proxy, lastClientActivity } = streamInfo;
+    stats[id] = {
+      clients: proxy.clients ? proxy.clients.size : 0,
+      isRunning: proxy.isRunning,
+      lastActivity: new Date(lastClientActivity).toISOString(),
+      uptime: proxy.isRunning && proxy.startTime ? Date.now() - proxy.startTime : 0
+    };
+  }
+  res.json(stats);
+});
+
 // Per forzare la chiusura di uno stream specifico
 function closeStream(id) {
   if (proxies[id]) {
@@ -144,4 +187,4 @@ function getStreamStats() {
   }
   return stats;
 }
-  */
+  
