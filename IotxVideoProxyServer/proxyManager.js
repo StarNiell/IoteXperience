@@ -99,7 +99,7 @@ class ProxyStream {
     try {
       this.ffmpegProcess = spawn("ffmpeg", [
         "-i", this.deviceUrl,
-        "-vf", "scale=1050:600:force_original_aspect_ratio=decrease",
+        "-vf", "scale=1050:600",
         "-pix_fmt", "yuvj422p",
         "-f", "mjpeg",
         "-q:v", "5",
