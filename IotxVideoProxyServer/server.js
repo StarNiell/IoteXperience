@@ -30,15 +30,8 @@ console.info = (...args) => {
   originalConsole.info(`[${getTimestamp()}] 🔵`, ...args);
 };
 
-// Aggiungi metodi custom
 console.success = (...args) => {
   originalConsole.log(`[${getTimestamp()}] ✅`, ...args);
-};
-
-console.debug = (...args) => {
-  if (process.env.DEBUG) {
-    originalConsole.log(`[${getTimestamp()}] 🐛`, ...args);
-  }
 };
 
 // 🔥 FIX PER MODULI HTTP/HTTPS
@@ -65,6 +58,7 @@ https.globalAgent = noKeepAliveAgentHttps;
 const app = express();
 const port = 3002;
 
+// Middleware
 app.use(express.json({
   limit: '1mb',
   verify: (req, res, buf) => {
@@ -76,6 +70,7 @@ app.use(cors({
   maxAge: 300
 }));
 
+// Variabili globali
 let deviceMap = {};
 let deviceFixed = config.fixedStreams || {};
 const proxies = new Map();
@@ -112,7 +107,35 @@ function aggressiveModuleCleanup() {
   }
 }
 
-// 🔥 CLEANUP OTTIMIZZATO
+// 🔥 FUNZIONE DISTRUZIONE PROXY
+function safelyDestroyProxy(id, proxy) {
+  try {
+    console.log(`Distruzione proxy: ${id}`);
+    
+    if (proxy.destroy) {
+      proxy.destroy();
+    }
+    
+    if (proxy.stopStream) {
+      proxy.stopStream();
+    }
+    
+    setTimeout(() => {
+      if (proxy.cleanup) {
+        proxy.cleanup();
+      }
+      
+      if (global.gc) {
+        setImmediate(() => global.gc());
+      }
+    }, 100);
+    
+  } catch (error) {
+    console.error(`Errore distruzione proxy ${id}:`, error);
+  }
+}
+
+// 🔥 CLEANUP AUTOMATICO
 function startOptimizedCleanup() {
   setInterval(() => {
     const now = Date.now();
@@ -150,41 +173,50 @@ function startOptimizedCleanup() {
   }, 20000);
 }
 
-// 🔥 SOSTITUISCI safelyDestroyProxy
-function safelyDestroyProxy(id, proxy) {
-  try {
-    console.log(`Distruzione proxy: ${id}`);
-    
-    if (proxy.destroy) {
-      proxy.destroy();
-    }
-    
-    if (proxy.stopStream) {
-      proxy.stopStream();
-    }
-    
-    setTimeout(() => {
-      if (proxy.cleanup) {
-        proxy.cleanup();
-      }
-      
-      if (global.gc) {
-        setImmediate(() => global.gc());
-      }
-    }, 100);
-    
-  } catch (error) {
-    console.error(`Errore distruzione proxy ${id}:`, error);
+// 🔥 GRACEFUL SHUTDOWN
+function shutdown() {
+  console.log('Avvio shutdown server...');
+  
+  for (const [id, streamInfo] of proxies.entries()) {
+    safelyDestroyProxy(id, streamInfo.proxy);
   }
+  proxies.clear();
+  
+  aggressiveModuleCleanup();
+  
+  if (global.gc) {
+    for (let i = 0; i < 3; i++) {
+      setTimeout(() => global.gc(), i * 500);
+    }
+  }
+  
+  console.success('Server shutdown completato');
+  process.exit(0);
 }
 
-// 1. Endpoint basic
+// 🔥🔥🔥 ENDPOINTS 🔥🔥🔥
+
+// Endpoint base
+app.get('/', (req, res) => {
+  res.send(`
+    <h1>Video Proxy Server</h1>
+    <p>Server streaming proxy in esecuzione</p>
+    <ul>
+      <li><a href="/streams">/streams</a> - Lista stream</li>
+      <li><a href="/streamstats">/streamstats</a> - Statistiche</li>
+      <li><a href="/memory/deep">/memory/deep</a> - Memoria</li>
+      <li><a href="/endpoints">/endpoints</a> - Tutti gli endpoint</li>
+    </ul>
+  `);
+});
+
+// Elenco stream disponibili
 app.get('/streams', (req, res) => {
   res.send(`<h2>Stream disponibili:</h2>
     <ul>${Object.keys(deviceMap).map(id => `<li>${id}</li>`).join('')}</ul>`);
 });
 
-// 2. Configurazione
+// Configurazione device
 app.post('/config', (req, res) => {
   const tokenValid = req.body.tokenValid;
   if (!CryptoUtil.isTokenValid(tokenValid)) {
@@ -212,7 +244,7 @@ app.post('/config', (req, res) => {
   res.json({ success: true, devices: Object.keys(deviceMap) });
 });
 
-// 3. Stream principale
+// Stream video
 app.get('/stream/:id', (req, res) => {
   const memBefore = process.memoryUsage().heapUsed;
   
@@ -274,7 +306,7 @@ app.get('/stream/:id', (req, res) => {
   }
 });
 
-// 4. Gestione stream specifici
+// Gestione stream
 app.post('/stream/:id/close', (req, res) => {
   const { id } = req.params;
   const streamInfo = proxies.get(id);
@@ -324,7 +356,7 @@ app.post('/stream/:id/restart', (req, res) => {
   res.status(404).json({ error: 'Stream non trovato' });
 });
 
-// 5. Statistiche
+// Statistiche
 app.get('/streamstats', (req, res) => {
   const stats = {
     streams: {},
@@ -360,7 +392,7 @@ app.get('/streamstats', (req, res) => {
   res.json(stats);
 });
 
-// 6. Memory endpoints (ULTIMI)
+// Memory management
 app.get('/memory/deep', (req, res) => {
   const mem = process.memoryUsage();
   const stats = {
@@ -401,21 +433,25 @@ app.post('/memory/cleanup', (req, res) => {
   res.json({ success: true, message: 'Cleanup completato' });
 });
 
-// 7. Endpoint di debug
+// Endpoint di debug
 app.get('/endpoints', (req, res) => {
   const endpoints = [
-    '/streams - GET - List available streams',
-    '/config - POST - Update stream configuration', 
-    '/stream/:id - GET - Stream video',
-    '/stream/:id/close - POST - Close specific stream',
-    '/stream/:id/restart - POST - Restart specific stream',
-    '/streamstats - GET - Stream statistics',
-    '/memory/deep - GET - Memory statistics',
-    '/memory/cleanup - POST - Force memory cleanup',
-    '/endpoints - GET - This list'
+    'GET  /                 - Pagina principale',
+    'GET  /streams          - Lista stream disponibili',
+    'POST /config           - Aggiorna configurazione streams',
+    'GET  /stream/:id       - Stream video',
+    'POST /stream/:id/close - Chiudi stream specifico', 
+    'POST /stream/:id/restart - Riavvia stream specifico',
+    'GET  /streamstats      - Statistiche streams',
+    'GET  /memory/deep      - Statistiche memoria dettagliate',
+    'POST /memory/cleanup   - Forza cleanup memoria',
+    'GET  /endpoints        - Lista endpoint (questa)'
   ];
   
-  res.json({ endpoints });
+  res.json({ 
+    message: 'Endpoint disponibili:',
+    endpoints 
+  });
 });
 
 // 🔥 AVVIO SERVER
@@ -427,7 +463,7 @@ app.listen(port, () => {
   startOptimizedCleanup();
 });
 
-// 🔥 GRACEFUL SHUTDOWN
+// 🔥 GESTIONE SHUTDOWN
 process.on('SIGTERM', () => {
   console.warn('SIGTERM ricevuto, cleanup...');
   shutdown();
@@ -438,115 +474,4 @@ process.on('SIGINT', () => {
   shutdown();
 });
 
-function shutdown() {
-  console.log('Avvio shutdown server...');
-  
-  for (const [id, streamInfo] of proxies.entries()) {
-    safelyDestroyProxy(id, streamInfo.proxy);
-  }
-  proxies.clear();
-  
-  aggressiveModuleCleanup();
-  
-  if (global.gc) {
-    for (let i = 0; i < 3; i++) {
-      setTimeout(() => global.gc(), i * 500);
-    }
-  }
-  
-  console.success('Server shutdown completato');
-  process.exit(0);
-}
-
-// Elenco stream disponibili
-app.get('/streams', (req, res) => {
-  res.send(`<h2>Stream disponibili:</h2>
-    <ul>${Object.keys(deviceMap).map(id => `<li>${id}</li>`).join('')}</ul>`);
-});
-
-// Endpoint per forzare la chiusura di uno stream specifico
-app.post('/stream/:id/close', (req, res) => {
-  const { id } = req.params;
-  const streamInfo = proxies.get(id);
-  
-  if (streamInfo) {
-    console.log(`Chiusura forzata stream: ${id}`);
-    safelyDestroyProxy(id, streamInfo.proxy);
-    proxies.delete(id);
-    
-    if (global.gc) {
-      global.gc();
-    }
-    
-    return res.json({ success: true, message: `Stream ${id} chiuso` });
-  }
-  res.status(404).json({ error: 'Stream non trovato' });
-});
-
-// Endpoint per riavviare uno stream specifico
-app.post('/stream/:id/restart', (req, res) => {
-  const { id } = req.params;
-  const streamInfo = proxies.get(id);
-  
-  if (streamInfo) {
-    console.log(`Riavvio forzato stream: ${id}`);
-    
-    safelyDestroyProxy(id, streamInfo.proxy);
-    proxies.delete(id);
-    
-    setTimeout(() => {
-      try {
-        const newProxy = new ProxyStream(deviceMap[id]);
-        proxies.set(id, {
-          proxy: newProxy,
-          lastClientActivity: Date.now(),
-          isPermanent: false,
-          createdAt: Date.now()
-        });
-        newProxy.startStream();
-        console.log(`Stream ${id} riavviato con successo`);
-      } catch (error) {
-        console.error(`Errore nel riavvio dello stream ${id}:`, error);
-      }
-    }, 1000);
-    
-    return res.json({ success: true, message: `Stream ${id} riavviato` });
-  }
-  res.status(404).json({ error: 'Stream non trovato' });
-});
-
-// Endpoint per statistiche degli stream
-app.get('/streamstats', (req, res) => {
-  const stats = {
-    streams: {},
-    memory: {
-      rss: process.memoryUsage().rss,
-      heapTotal: process.memoryUsage().heapTotal,
-      heapUsed: process.memoryUsage().heapUsed,
-      external: process.memoryUsage().external
-    },
-    summary: {
-      totalStreams: proxies.size,
-      totalClients: 0,
-      activeStreams: 0
-    }
-  };
-  
-  for (const [id, streamInfo] of proxies.entries()) {
-    const { proxy, lastClientActivity, createdAt } = streamInfo;
-    const clientCount = proxy.clients ? proxy.clients.size : 0;
-    
-    stats.summary.totalClients += clientCount;
-    if (proxy.isRunning) stats.summary.activeStreams++;
-    
-    stats.streams[id] = {
-      clients: clientCount,
-      isRunning: proxy.isRunning,
-      lastActivity: new Date(lastClientActivity).toISOString(),
-      uptime: proxy.isRunning && proxy.startTime ? Date.now() - proxy.startTime : 0,
-      age: Date.now() - createdAt
-    };
-  }
-  
-  res.json(stats);
-});
+module.exports = app;
