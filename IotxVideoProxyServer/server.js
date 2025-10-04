@@ -112,6 +112,47 @@ function aggressiveModuleCleanup() {
   }
 }
 
+// 🔥 MEMORY MANAGEMENT ENDPOINTS
+app.get('/memory/deep', (req, res) => {
+  const mem = process.memoryUsage();
+  const stats = {
+    memory: {
+      rss: `${(mem.rss / 1024 / 1024).toFixed(2)} MB`,
+      heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(2)} MB`,
+      heapUsed: `${(mem.heapUsed / 1024 / 1024).toFixed(2)} MB`,
+      external: `${(mem.external / 1024 / 1024).toFixed(2)} MB`
+    },
+    proxies: proxies.size,
+    modules: Object.keys(moduleCache).length,
+    stats: memoryStats
+  };
+  
+  if (mem.heapUsed > memoryStats.peak) {
+    memoryStats.peak = mem.heapUsed;
+  }
+  
+  res.json(stats);
+});
+
+app.post('/memory/cleanup', (req, res) => {
+  console.log('Cleanup memoria forzato...');
+  
+  for (const [id, streamInfo] of proxies.entries()) {
+    safelyDestroyProxy(id, streamInfo.proxy);
+  }
+  proxies.clear();
+  
+  aggressiveModuleCleanup();
+  
+  if (global.gc) {
+    global.gc();
+    setTimeout(() => global.gc(), 1000);
+  }
+  
+  memoryStats.cleanups++;
+  res.json({ success: true, message: 'Cleanup completato' });
+});
+
 // 🔥 ENDPOINT CON GESTIONE MEMORIA
 app.post('/config', (req, res) => {
   const tokenValid = req.body.tokenValid;
@@ -200,47 +241,6 @@ app.get('/stream/:id', (req, res) => {
       res.status(500).send("Errore interno");
     }
   }
-});
-
-// 🔥 MEMORY MANAGEMENT ENDPOINTS
-app.get('/memory/deep', (req, res) => {
-  const mem = process.memoryUsage();
-  const stats = {
-    memory: {
-      rss: `${(mem.rss / 1024 / 1024).toFixed(2)} MB`,
-      heapTotal: `${(mem.heapTotal / 1024 / 1024).toFixed(2)} MB`,
-      heapUsed: `${(mem.heapUsed / 1024 / 1024).toFixed(2)} MB`,
-      external: `${(mem.external / 1024 / 1024).toFixed(2)} MB`
-    },
-    proxies: proxies.size,
-    modules: Object.keys(moduleCache).length,
-    stats: memoryStats
-  };
-  
-  if (mem.heapUsed > memoryStats.peak) {
-    memoryStats.peak = mem.heapUsed;
-  }
-  
-  res.json(stats);
-});
-
-app.post('/memory/cleanup', (req, res) => {
-  console.log('Cleanup memoria forzato...');
-  
-  for (const [id, streamInfo] of proxies.entries()) {
-    safelyDestroyProxy(id, streamInfo.proxy);
-  }
-  proxies.clear();
-  
-  aggressiveModuleCleanup();
-  
-  if (global.gc) {
-    global.gc();
-    setTimeout(() => global.gc(), 1000);
-  }
-  
-  memoryStats.cleanups++;
-  res.json({ success: true, message: 'Cleanup completato' });
 });
 
 // 🔥 CLEANUP OTTIMIZZATO
