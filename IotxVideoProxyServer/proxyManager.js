@@ -119,11 +119,13 @@ class ProxyStream {
     console.log(`Avvio stream RTSP: ${this.deviceUrl}`);
     this.boundary = "--frame";
 
+    /*
+        "-vf", "scale=1050:600",
+        "-pix_fmt", "yuvj422p",
+    */
     try {
       this.ffmpegProcess = spawn("ffmpeg", [
         "-i", this.deviceUrl,
-        "-vf", "scale=1050:600",
-        "-pix_fmt", "yuvj422p",
         "-f", "mjpeg",
         "-q:v", "5",
         "-r", "5",
