@@ -31,16 +31,12 @@ const Dashboard: React.FC = () => {
     }
     var checkDashboard = dashboardId;
 
-    if (checkDashboard === '999') {
-        useEffect(() => {
-            refreshDashboards();
-        });
-        /*
-        checkDashboard = undefined;
-        //navigate(`/`);
-        window.location.href = "/";
-        */
-    }
+    // useEffect(() => {
+    //     if (checkDashboard === '999') {
+    //         console.log("Refresh dashboards from dashboard page");
+    //         refreshDashboards();
+    //     }
+    // }, [checkDashboard]);
 
     if (dashboards.filter(dashboard => dashboard.id === parseInt(checkDashboard || '0')).length === 0) {
         checkDashboard = user?.data?.User.dashboardid.toString();
@@ -170,7 +166,8 @@ const Dashboard: React.FC = () => {
 
     return (
     <>
-        <center className='p-3'><h1>Dashboard: {dashboard?.name}</h1></center>
+        <center className='p-3'><h1>{dashboard?.name}</h1></center>
+
         <Container className="fluid">
             {chunkArrayMixed(allItems, 4).map((itemChunk, index) => (
                 <Row key={index}>
@@ -185,6 +182,12 @@ const Dashboard: React.FC = () => {
                     ))}
                 </Row>
             ))}
+            <div className="d-flex justify-content-center mt-5">
+                <button className='btn btn-primary' onClick={refreshDashboards}>
+                    Synchronize all dashboards
+                </button>
+            </div>
+
             <div>
                 <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
             </div>

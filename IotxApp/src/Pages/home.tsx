@@ -24,7 +24,7 @@ function Home() {
             {auth && (
             <div className="d-flex justify-content-center mt-5">
                 <button className='btn btn-primary' onClick={() => navigate(`/dashboard/${user?.data.User.dashboardid}`)}>
-                    Go to Dahboard
+                    Go to Dashboard
                 </button>
             </div>
             )}

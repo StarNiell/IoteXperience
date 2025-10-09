@@ -53,8 +53,6 @@ function Navbar() {
                                                         <NavLink to={`/dashboard/${dashboard.id}`} className="dropdown-item">{dashboard.name}</NavLink>
                                                     </li>
                                                 ))}
-                                                <li><div className="dropdown-divider"></div></li> {/* Separatore */}
-                                                <li><NavLink to="/dashboard/999" className="dropdown-item"><span style={{ paddingLeft: '4px' }}>Refresh</span></NavLink></li>
                                             </ul>
                                         </li>
                                     </>
