@@ -11,8 +11,9 @@ const StreamViewUI: React.FC<{stream_id: string}> = ({stream_id}) => {
 
      useEffect(() => {
         if (isActive) { // controlla se isActive è vero
-        console.log("Refresh streamProxyUrl for current stream");
-        setStreamProxyUrl(`${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}`);
+            console.log("Refresh streamProxyUrl for current stream");
+            const uniqueParam = `&_ts=${Date.now()}`; // aggiunge un parametro unico per forzare il refresh
+            setStreamProxyUrl(`${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}${uniqueParam}`);
         }
     }, [isActive, stream_id]);
     

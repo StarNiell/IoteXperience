@@ -1,4 +1,5 @@
 import React, { RefObject } from 'react';
+import { TimeUtil } from '../../../utils/timeutil.ts';
 
 interface SimpleCanvasProps {
     value: number;
@@ -42,7 +43,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
         let tempCanvas: number = this.props.value;
         let MaxValCanvas: number = this.props.maxVal - 1;
-        const valueTime = parseIsoDate(this.props.timestamp);
+        const valueTime = TimeUtil.parseIsoDate(this.props.timestamp);
         let unvaluedTimeStamp: boolean = (this.props.timestamp === "0000-00-00T00:00:00Z")
         let expired: boolean = valueTime ? ((new Date().getTime() - valueTime.getTime()) > (5 * 60 * 1000)) : true; // Expired if older than 10 minutes or invalid date
 
@@ -123,10 +124,6 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
             }
         }
 
-        function parseIsoDate(isoString: string): Date | null {
-            const date = new Date(isoString);
-            return isNaN(date.getTime()) ? null : date;
-        }
     }
 
 

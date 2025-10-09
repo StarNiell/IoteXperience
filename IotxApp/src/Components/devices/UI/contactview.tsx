@@ -1,6 +1,7 @@
 
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faPlugCircleBolt } from '@fortawesome/free-solid-svg-icons'
+import { TimeUtil } from '../../../utils/timeutil.ts';
 
 const ContactViewUI: React.FC<{ value: number; timestamp: string; caption: string }> = ({value, timestamp, caption }) => {
 
@@ -10,7 +11,7 @@ const ContactViewUI: React.FC<{ value: number; timestamp: string; caption: strin
     else
         contactState = "switch-off";
 
-    const valueTime = parseIsoDate(timestamp);
+    const valueTime = TimeUtil.parseIsoDate(timestamp);
     let unvaluedTimeStamp: boolean = (timestamp === "0000-00-00T00:00:00Z")
     let expired: boolean = valueTime ? ((new Date().getTime() - valueTime.getTime()) > (2 * 60 * 1000)) : true; // Expired if older than 10 minutes or invalid date
 
@@ -20,11 +21,6 @@ const ContactViewUI: React.FC<{ value: number; timestamp: string; caption: strin
         }
     else if (expired) {
         bgClassName = "bg-danger";
-    }
-
-    function parseIsoDate(isoString: string): Date | null {
-        const date = new Date(isoString);
-        return isNaN(date.getTime()) ? null : date;
     }
 
     return (

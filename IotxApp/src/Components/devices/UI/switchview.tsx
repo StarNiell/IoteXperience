@@ -3,6 +3,7 @@ import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faDotCircle } from '@fortawesome/free-regular-svg-icons'
 import { faCircleDot } from '@fortawesome/free-solid-svg-icons'
 import { useMqtt } from '../../mqtt';
+import { TimeUtil } from '../../../utils/timeutil.ts';
 
 const SwitchViewUI: React.FC<{subscription: string,  
                                 device_id: string, 
@@ -19,7 +20,7 @@ const SwitchViewUI: React.FC<{subscription: string,
     else
         switchState = "switch-off";
 
-    const valueTime = parseIsoDate(timestamp);
+    const valueTime = TimeUtil.parseIsoDate(timestamp);
     let unvaluedTimeStamp: boolean = (timestamp === "0000-00-00T00:00:00Z")
     let expired: boolean = valueTime ? ((new Date().getTime() - valueTime.getTime()) > (2 * 60 * 1000)) : true; // Expired if older than 10 minutes or invalid date
 
@@ -40,12 +41,7 @@ const SwitchViewUI: React.FC<{subscription: string,
           .catch((err) => console.error("Failed to publish message: ", err));
       };
 
-    function parseIsoDate(isoString: string): Date | null {
-        const date = new Date(isoString);
-        return isNaN(date.getTime()) ? null : date;
-    }
-
-    return (
+      return (
         <>
             <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
                 <center><div style={{ minHeight: "25px" }} className={`${bgClassName}  rounded text-dark`} >{caption}</div></center>
