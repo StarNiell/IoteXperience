@@ -35,10 +35,13 @@ const SwitchViewUI: React.FC<{subscription: string,
     let currentValue: number = value;
 
     const handlePublish = () => {
-        currentValue = currentValue === 1 ? 0 : 1;
-        publishMessage(subscription, '{"device_id": "' + device_id + '", "value": ' + currentValue + '}')
-          .then(() => console.log("Message published successfully"))
-          .catch((err) => console.error("Failed to publish message: ", err));
+        if (!expired)
+        {
+            currentValue = currentValue === 1 ? 0 : 1;
+            publishMessage(subscription, '{"device_id": "' + device_id + '", "value": ' + currentValue + '}')
+            .then(() => console.log("Message published successfully"))
+            .catch((err) => console.error("Failed to publish message: ", err));
+        }
       };
 
       return (
