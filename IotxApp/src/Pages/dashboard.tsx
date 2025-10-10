@@ -23,7 +23,6 @@ const Dashboard: React.FC = () => {
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const navigate = useNavigate();
-    const [dboards, setDashboards] = useState<DashboardModel[]>([]);
     //const isPageActive = usePageActive();
 
     if (user?.data?.User === undefined) {
@@ -70,24 +69,6 @@ const Dashboard: React.FC = () => {
             setMergedDevices(merged);
         }
     }, [deviceList, dashboard]);
-
-    const refreshDashboards = async () => {
-        const token = user?.data?.Token;
-        const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdashboards/`, "get", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
-            setShowError(true);
-        } else {
-            dboards.length = 0; // Clear the array while keeping the reference
-            data.forEach((element: any) => {
-                dboards.push({ id: element.id, name: element.name, devices: [], streams: [] });   
-            });
-            setDashboards(dboards);
-            localStorage.setItem("dashboards", JSON.stringify(dboards));
-            window.location.href = "/";
-        }
-    };
 
     const fetchDashboard = async () => {
         const token = user?.data?.Token;
@@ -182,11 +163,6 @@ const Dashboard: React.FC = () => {
                     ))}
                 </Row>
             ))}
-            <div className="d-flex justify-content-center mt-5">
-                <button className='btn btn-primary' onClick={refreshDashboards}>
-                    Synchronize all dashboards
-                </button>
-            </div>
 
             <div>
                 <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
