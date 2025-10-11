@@ -24,11 +24,23 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
     }
 
     componentDidMount() {
+        // Redraw when font is loaded
+        if (document.fonts) {
+            document.fonts.load("30px 'BR Cobane'").then(() => {
+                this.drawCanvass();
+            });
+        }
         this.drawCanvass();
     }
 
     componentDidUpdate() {
-        this.drawCanvass();
+         if (document.fonts) {
+            document.fonts.load("30px 'BR Cobane'").then(() => {
+                this.drawCanvass();
+            });
+        } else {
+            this.drawCanvass();
+        }
     }
 
     
