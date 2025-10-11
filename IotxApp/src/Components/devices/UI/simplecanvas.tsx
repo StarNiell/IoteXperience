@@ -24,26 +24,13 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
     }
 
     componentDidMount() {
-        // Redraw when font is loaded
-        if (document.fonts) {
-            document.fonts.load("30px 'BR Cobane'").then(() => {
-                this.drawCanvass();
-            });
-        }
         this.drawCanvass();
     }
 
     componentDidUpdate() {
-         if (document.fonts) {
-            document.fonts.load("30px 'BR Cobane'").then(() => {
-                this.drawCanvass();
-            });
-        } else {
-            this.drawCanvass();
-        }
+        this.drawCanvass();
     }
 
-    
     drawCanvass() {
         const canvas = this.canvas.current;
         const startAngle: number = 215;
