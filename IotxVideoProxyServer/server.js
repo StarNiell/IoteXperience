@@ -288,6 +288,7 @@ app.get('/stream/:id', (req, res) => {
     res.on('close', () => {
       if (streamInfo.proxy && streamInfo.proxy.removeClient) {
         streamInfo.proxy.removeClient(res);
+        safelyDestroyProxy(streamInfo.proxy.id, streamInfo.proxy);
       }
       const memAfter = process.memoryUsage().heapUsed;
       if (memAfter > memBefore * 1.5) {
