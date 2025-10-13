@@ -301,6 +301,10 @@ class ProxyStream {
           }
         }
       }
+      // Pulizia periodica client morti
+      if (Math.random() < 0.1) { // 10% di probabilità per ridurre CPU
+        this.cleanupDeadClients();
+      }
     }
   }
 
@@ -351,6 +355,7 @@ class ProxyStream {
       if (client.destroyed || client.finished || client.writableEnded || !client.writable) {
         this.clients.delete(client);
         client.destroy();
+        console.log("Rimosso client morto, totale client:", this.clients.size);
       }
     });
   }
