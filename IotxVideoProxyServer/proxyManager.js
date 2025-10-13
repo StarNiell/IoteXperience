@@ -108,7 +108,13 @@ class ProxyStream {
 
     // Libera memoria del buffer
     this.buffer = Buffer.alloc(0);
-    
+
+    if (this.httpResponse) {
+      this.httpResponse.removeAllListeners();
+      this.httpResponse.destroy && this.httpResponse.destroy();
+      this.httpResponse = null;
+    }
+      
     console.log(`Stream ${this.deviceUrl} fermato`);
   }
 
@@ -221,6 +227,7 @@ class ProxyStream {
     const parsed = url.parse(this.deviceUrl);
     const lib = parsed.protocol === "https:" ? https : http;
 
+
     const connect = () => {
       if (!this.isRunning) return;
 
@@ -228,6 +235,7 @@ class ProxyStream {
       
       try {
         this.httpRequest = lib.get(this.deviceUrl, (res) => {
+          this.httpResponse = res;
           if (!this.boundary && res.headers["content-type"]) {
             const ct = res.headers["content-type"];
             const match = ct.match(/boundary=([^\s;]+)/i);
