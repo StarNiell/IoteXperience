@@ -4,7 +4,7 @@ const ProxyStream = require('./proxyManager');
 const CryptoUtil = require('./cryptoutil');
 const config = require('./config');
 
-// 🔥 OVERRIDE CONSOLE LOG CON TIMESTAMP
+// OVERRIDE CONSOLE LOG CON TIMESTAMP
 const originalConsole = {
   log: console.log,
   error: console.error,

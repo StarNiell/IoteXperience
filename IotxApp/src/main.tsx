@@ -12,6 +12,32 @@ import AuthProvider from "./Auth/auth.tsx";
 import MqttProvider from "./Components/mqtt.tsx";
 import DevicesProvider from "./Components/devices-from-db.tsx";
 
+  // OVERRIDE CONSOLE LOG CON TIMESTAMP
+  const originalConsole = {
+    log: console.log,
+    error: console.error,
+    warn: console.warn,
+    info: console.info
+  };
+
+  const getTimestamp = () => new Date().toISOString();
+
+  console.log = (...args) => {
+    originalConsole.log(`[${getTimestamp()}] [LOG]`, ...args);
+  };
+
+  console.error = (...args) => {
+    originalConsole.error(`[${getTimestamp()}] [ERR]`, ...args);
+  };
+
+  console.warn = (...args) => {
+    originalConsole.warn(`[${getTimestamp()}] [WRN]`, ...args);
+  };
+
+  console.info = (...args) => {
+    originalConsole.info(`[${getTimestamp()}] [INF]`, ...args);
+  };
+
   localStorage.setItem("mqtt-connected-status", "disconnected");
   
   const clientId = generateGUID();
