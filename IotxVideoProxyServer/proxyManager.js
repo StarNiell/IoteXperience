@@ -232,7 +232,7 @@ class ProxyStream {
     const connect = () => {
       if (!this.isRunning) return;
 
-      console.log(`Connessione a ${id} --> ${this.deviceUrl}...`);
+      console.log(`Connessione a ${this.id} --> ${this.deviceUrl}...`);
       
       try {
         this.httpRequest = lib.get(this.deviceUrl, (res) => {
