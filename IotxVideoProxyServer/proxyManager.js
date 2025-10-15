@@ -123,7 +123,7 @@ class ProxyStream {
   startRtspStream() {
     if (!this.isRunning) return;
 
-    console.log(`Avvio stream RTSP: ${this.id} --> ${this.deviceUrl}`);
+    console.log(`Riproduco stream RTSP: ${this.id} --> ${this.deviceUrl}`);
     this.boundary = "--frame";
 
     /*
@@ -232,8 +232,8 @@ class ProxyStream {
     const connect = () => {
       if (!this.isRunning) return;
 
-      console.log(`Connessione a ${this.id} --> ${this.deviceUrl}...`);
-      
+      console.log(`Riproduco stream HTTP: ${this.id} --> ${this.deviceUrl}`);
+
       try {
         this.httpRequest = lib.get(this.deviceUrl, (res) => {
           this.httpResponse = res;

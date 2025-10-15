@@ -248,7 +248,8 @@ app.post('/config', (req, res) => {
     }
   }
 
-  console.log('Lista Streams aggiornata:', deviceMap);
+  console.log('/config: Lista Streams aggiornata');
+  //console.log('Lista Streams aggiornata da chiamata /config:', deviceMap);
   res.json({ success: true, devices: Object.keys(deviceMap) });
 });
 
@@ -289,7 +290,7 @@ app.get('/stream/:id', (req, res) => {
     streamInfo.lastClientActivity = Date.now();
 
     if (!streamInfo.proxy.isRunning) {
-      console.log(`Avvio stream: ${id}`);
+      console.log(`Avvio ProxyStream: ${id}`);
       streamInfo.proxy.startStream();
     }
 
