@@ -135,6 +135,7 @@ function safelyDestroyProxy(id, proxy) {
   }
 }
 
+/*
 // 🔥 CLEANUP AUTOMATICO
 function startOptimizedCleanup() {
   setInterval(() => {
@@ -172,10 +173,20 @@ function startOptimizedCleanup() {
     
   }, 20000);
 }
+  */
 
 // 🔥 GRACEFUL SHUTDOWN
 function shutdown() {
   console.log('Avvio shutdown server...');
+  
+  memoryCleanup();
+  
+  console.success('Server shutdown completato');
+  process.exit(0);
+}
+
+function memoryCleanup() {
+  console.log('Avvio memory cleanup...');
   
   for (const [id, streamInfo] of proxies.entries()) {
     safelyDestroyProxy(id, streamInfo.proxy);
@@ -189,12 +200,9 @@ function shutdown() {
       setTimeout(() => global.gc(), i * 500);
     }
   }
-  
-  console.success('Server shutdown completato');
-  process.exit(0);
 }
 
-// 🔥🔥🔥 ENDPOINTS 🔥🔥🔥
+//ENDPOINTS
 
 // Endpoint base
 app.get('/', (req, res) => {
@@ -270,7 +278,7 @@ app.get('/stream/:id', (req, res) => {
     if (!proxies.has(id)) {
       console.log(`Creazione nuovo proxy stream: ${id}`);
       proxies.set(id, {
-        proxy: new ProxyStream(deviceMap[id]),
+        proxy: new ProxyStream(id, deviceMap[id]),
         lastClientActivity: Date.now(),
         isPermanent: false,
         createdAt: Date.now()
@@ -416,20 +424,8 @@ app.get('/memory/deep', (req, res) => {
 });
 
 app.post('/memory/cleanup', (req, res) => {
-  console.log('Cleanup memoria forzato...');
-  
-  for (const [id, streamInfo] of proxies.entries()) {
-    safelyDestroyProxy(id, streamInfo.proxy);
-  }
-  proxies.clear();
-  
-  aggressiveModuleCleanup();
-  
-  if (global.gc) {
-    global.gc();
-    setTimeout(() => global.gc(), 1000);
-  }
-  
+  console.log('Chiamata memory cleanup...');
+  memoryCleanup();
   memoryStats.cleanups++;
   res.json({ success: true, message: 'Cleanup completato' });
 });
@@ -461,7 +457,7 @@ app.listen(port, () => {
   console.info(`Memory guard attiva`);
   deviceMap = { ...deviceFixed };
   console.log('Lista Fixed Streams:', deviceMap);
-  startOptimizedCleanup();
+  //startOptimizedCleanup(); non serve all'avvio
 });
 
 // 🔥 GESTIONE SHUTDOWN

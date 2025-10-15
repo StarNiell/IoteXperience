@@ -5,7 +5,8 @@ const { spawn } = require("child_process");
 
 
 class ProxyStream {
-  constructor(deviceUrl) {
+  constructor(id, deviceUrl) {
+    this.id = id;
     this.deviceUrl = deviceUrl;
     this.clients = new Set();
     this.boundary = null;
@@ -115,14 +116,14 @@ class ProxyStream {
       this.httpResponse = null;
     }
       
-    console.log(`Stream ${this.deviceUrl} fermato`);
+    console.log(`Stream ${this.id} fermato`);
   }
 
   // 🔹 Gestione RTSP con ffmpeg - MEMORY SAFE
   startRtspStream() {
     if (!this.isRunning) return;
 
-    console.log(`Avvio stream RTSP: ${this.deviceUrl}`);
+    console.log(`Avvio stream RTSP: ${this.id} --> ${this.deviceUrl}`);
     this.boundary = "--frame";
 
     /*
@@ -231,7 +232,7 @@ class ProxyStream {
     const connect = () => {
       if (!this.isRunning) return;
 
-      console.log(`Connettendo a ${this.deviceUrl}...`);
+      console.log(`Connessione a ${id} --> ${this.deviceUrl}...`);
       
       try {
         this.httpRequest = lib.get(this.deviceUrl, (res) => {
@@ -241,7 +242,7 @@ class ProxyStream {
             const match = ct.match(/boundary=([^\s;]+)/i);
             if (match) {
               this.boundary = match[1].startsWith("--") ? match[1] : "--" + match[1];
-              console.log(`Boundary rilevato: ${this.boundary}`);
+              //console.log(`Boundary rilevato: ${this.boundary}`);
             } else {
               this.boundary = "--frame";
             }
@@ -320,7 +321,7 @@ class ProxyStream {
 
   // Handler errori HTTP
   _onHttpError(err) {
-    if (this.isRunning) {
+    if (this.isRunningw) {
       console.error(`Errore HTTP: ${err.message}`);
       this.reconnectTimeout = setTimeout(() => {
         if (this.isRunning) this.startHttpStream();
@@ -384,7 +385,7 @@ class ProxyStream {
     this._onHttpEnd = null;
     this._onHttpError = null;
     
-    console.log(`ProxyStream per ${this.deviceUrl} distrutto completamente`);
+    console.log(`ProxyStream per ${this.id} distrutto completamente`);
   }
 }
 
