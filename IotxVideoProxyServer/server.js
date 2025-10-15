@@ -112,14 +112,14 @@ function safelyDestroyProxy(id, proxy) {
   try {
     console.log(`Distruzione proxy: ${id}`);
     
-    if (proxy.destroy) {
-      proxy.destroy();
-    }
-    
     if (proxy.stopStream) {
       proxy.stopStream();
     }
-    
+
+    if (proxy.destroy) {
+      proxy.destroy();
+    }
+
     setTimeout(() => {
       if (proxy.cleanup) {
         proxy.cleanup();
@@ -295,14 +295,16 @@ app.get('/stream/:id', (req, res) => {
     }
 
     res.on('close', () => {
+      console.log(`Remotely close stream ${id}`);
       if (streamInfo.proxy && streamInfo.proxy.removeClient) {
+        console.log(`Remove client on stream ${id}`);
         streamInfo.proxy.removeClient(res);
         safelyDestroyProxy(streamInfo.proxy.id, streamInfo.proxy);
       }
       const memAfter = process.memoryUsage().heapUsed;
       if (memAfter > memBefore * 1.5) {
         memoryStats.leaksDetected++;
-        console.warn(`Possibile memory leak in stream ${id}`);
+        console.warn(`Possibile memory leak in stream ${id} (memBefore: ${(memBefore / 1024 / 1024).toFixed(2)}MB, memAfter: ${(memAfter / 1024 / 1024).toFixed(2)}MB -> ${((memAfter - memBefore) / 1024 / 1024).toFixed(2)}MB )`);
       }
     });
 
