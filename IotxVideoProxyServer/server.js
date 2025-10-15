@@ -346,7 +346,7 @@ app.post('/stream/:id/restart', (req, res) => {
     
     setTimeout(() => {
       try {
-        const newProxy = new ProxyStream(deviceMap[id]);
+        const newProxy = new ProxyStream(id, deviceMap[id]);
         proxies.set(id, {
           proxy: newProxy,
           lastClientActivity: Date.now(),
