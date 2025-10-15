@@ -15,23 +15,23 @@ const originalConsole = {
 const getTimestamp = () => new Date().toISOString();
 
 console.log = (...args) => {
-  originalConsole.log(`[${getTimestamp()}] ℹ️`, ...args);
+  originalConsole.log(`[${getTimestamp()}] [LOG]`, ...args);
 };
 
 console.error = (...args) => {
-  originalConsole.error(`[${getTimestamp()}] ❌`, ...args);
+  originalConsole.error(`[${getTimestamp()}] [ERR]`, ...args);
 };
 
 console.warn = (...args) => {
-  originalConsole.warn(`[${getTimestamp()}] ⚠️`, ...args);
+  originalConsole.warn(`[${getTimestamp()}] [WRN]`, ...args);
 };
 
 console.info = (...args) => {
-  originalConsole.info(`[${getTimestamp()}] 🔵`, ...args);
+  originalConsole.info(`[${getTimestamp()}] [INF]`, ...args);
 };
 
 console.success = (...args) => {
-  originalConsole.log(`[${getTimestamp()}] ✅`, ...args);
+  originalConsole.log(`[${getTimestamp()}] [OK ]`, ...args);
 };
 
 // 🔥 FIX PER MODULI HTTP/HTTPS
