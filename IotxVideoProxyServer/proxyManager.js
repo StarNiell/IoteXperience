@@ -29,6 +29,7 @@ class ProxyStream {
   }
 
   addClient(res) {
+    const resId = res.getHeader('X-UIdenity') || 'unknown';
     const waitForBoundary = (attempts = 0) => {
       if (this.boundary || !this.deviceUrl.startsWith("http")) {
         res.writeHead(200, {
@@ -39,11 +40,11 @@ class ProxyStream {
         });
 
         this.clients.add(res);
-        console.log(`Client added on stream ${this.id}`);          
+        console.log(`Client added on stream ${this.id} - id: ${resId}`);          
 
         const cleanup = (type) => {
           this.clients.delete(res);
-          console.log(`Client ${type}: removed from stream ${this.id}`);          
+          console.log(`Client ${type}: removed from stream ${this.id} - id: ${resId}`);          
           // Cleanup memoria
           res.removeAllListeners();
           if (this.clients.size === 0) {
