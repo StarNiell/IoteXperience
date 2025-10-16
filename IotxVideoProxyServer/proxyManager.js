@@ -56,9 +56,9 @@ class ProxyStream {
           }
         };
 
-        res.on("close", cleanup("close"));
-        res.on("end", cleanup("end"));
-        res.on("error", cleanup("error"));
+        res.on("close", cleanup.bind(this, "close"));
+        res.on("end", cleanup.bind(this, "end"));
+        res.on("error", cleanup.bind(this, "error"));
 
       } else if (attempts < 10) {
         setTimeout(() => waitForBoundary(attempts + 1), 500);
