@@ -259,7 +259,7 @@ app.get('/stream/:id', (req, res) => {
   const memBefore = process.memoryUsage().heapUsed;
   
   const resId = CryptoUtil.generateRandomString(12);
-  req.append('X-UIdenity', resId);
+  res.append('X-UIdenity', resId);
 
   const { id } = req.params;
   const token = req.query.token;
