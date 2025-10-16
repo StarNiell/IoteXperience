@@ -39,9 +39,11 @@ class ProxyStream {
         });
 
         this.clients.add(res);
+        console.log(`Client added on stream ${this.id}`);          
 
         const cleanup = () => {
           this.clients.delete(res);
+          console.log(`Client removed from stream ${this.id}`);          
           // Cleanup memoria
           res.removeAllListeners();
           if (this.clients.size === 0) {
@@ -49,18 +51,21 @@ class ProxyStream {
               if (this.clients.size === 0) {
                 this.stopStream();
               }
-            }, 30000);
+            }, 10000); // Ferma lo stream dopo 10 secondi se nessun client
           }
         };
 
         res.on("close", cleanup);
         res.on("end", cleanup);
         res.on("error", cleanup);
+
       } else if (attempts < 10) {
         setTimeout(() => waitForBoundary(attempts + 1), 500);
+      
       } else {
         res.writeHead(503, { "Content-Type": "text/plain" });
-        res.end("Stream non ancora pronto, riprova tra pochi secondi...");
+        res.end("Stream not yet ready, retry in few seconds...");
+      
       }
     };
 
@@ -116,14 +121,14 @@ class ProxyStream {
       this.httpResponse = null;
     }
       
-    console.log(`Stream ${this.id} fermato`);
+    console.log(`Stream ${this.id} stopped`);
   }
 
   // 🔹 Gestione RTSP con ffmpeg - MEMORY SAFE
   startRtspStream() {
     if (!this.isRunning) return;
 
-    console.log(`Riproduco stream RTSP: ${this.id} --> ${this.deviceUrl}`);
+    console.log(`Play RTSP stream: ${this.id} --> ${this.deviceUrl}`);
     this.boundary = "--frame";
 
     /*
@@ -158,7 +163,7 @@ class ProxyStream {
       this.ffmpegProcess.on("error", this._onFfmpegError);
 
     } catch (error) {
-      console.error("Errore avvio FFmpeg:", error);
+      console.error("Error starting FFmpeg:", error);
       this.stopStream();
     }
   }
@@ -169,7 +174,7 @@ class ProxyStream {
     
     // Prevenire memory leak per buffer troppo grandi
     if (this.buffer.length + chunk.length > this.maxBufferSize) {
-      console.warn("Buffer troppo grande, reset");
+      console.warn("Buffer too big, reset");
       this.buffer = Buffer.alloc(0);
       return;
     }
@@ -199,13 +204,13 @@ class ProxyStream {
   // Handler chiusura FFmpeg
   _onFfmpegClose(code) {
     if (this.ffmpegProcess) {
-      console.log(`FFmpeg terminato con codice ${code}`);
+      console.log(`FFmpeg stopped with code ${code}`);
       this.ffmpegProcess = null;
     }
 
     // Riavvia solo se necessario
     if (this.isRunning && this.clients.size > 0) {
-      console.log("Riavvio FFmpeg in 3 secondi...");
+      console.log("Restarting FFmpeg in 3 seconds...");
       this.reconnectTimeout = setTimeout(() => {
         if (this.isRunning && this.clients.size > 0) {
           this.startRtspStream();
@@ -218,7 +223,7 @@ class ProxyStream {
 
   // Handler errori FFmpeg
   _onFfmpegError(err) {
-    console.error("Errore FFmpeg:", err.message);
+    console.error("FFmpeg Error:", err.message);
   }
 
   // 🔹 Gestione HTTP/MJPEG - MEMORY SAFE
@@ -232,7 +237,7 @@ class ProxyStream {
     const connect = () => {
       if (!this.isRunning) return;
 
-      console.log(`Riproduco stream HTTP: ${this.id} --> ${this.deviceUrl}`);
+      console.log(`Play HTTP stream: ${this.id} --> ${this.deviceUrl}`);
 
       try {
         this.httpRequest = lib.get(this.deviceUrl, (res) => {
@@ -265,7 +270,7 @@ class ProxyStream {
         });
 
       } catch (error) {
-        console.error("Errore connessione HTTP:", error);
+        console.error("Error HTTP conmection:", error);
         if (this.isRunning) {
           this.reconnectTimeout = setTimeout(connect, 5000);
         }
@@ -312,7 +317,7 @@ class ProxyStream {
   // Handler fine HTTP
   _onHttpEnd() {
     if (this.isRunning) {
-      console.log(`Stream HTTP terminato, riconnessione...`);
+      console.log(`HTTP stopped, reconnecting...`);
       this.reconnectTimeout = setTimeout(() => {
         if (this.isRunning) this.startHttpStream();
       }, 2000);
@@ -322,7 +327,7 @@ class ProxyStream {
   // Handler errori HTTP
   _onHttpError(err) {
     if (this.isRunningw) {
-      console.error(`Errore HTTP: ${err.message}`);
+      console.error(`HTTP Error: ${err.message}`);
       this.reconnectTimeout = setTimeout(() => {
         if (this.isRunning) this.startHttpStream();
       }, 5000);
@@ -356,7 +361,7 @@ class ProxyStream {
       if (client.destroyed || client.finished || client.writableEnded || !client.writable) {
         this.clients.delete(client);
         client.destroy();
-        console.log("Rimosso client morto, totale client:", this.clients.size);
+        console.log("Removed dead client. Count:", this.clients.size);
       }
     });
   }
@@ -385,7 +390,7 @@ class ProxyStream {
     this._onHttpEnd = null;
     this._onHttpError = null;
     
-    console.log(`ProxyStream per ${this.id} distrutto completamente`);
+    console.log(`ProxyStream ${this.id} completely destroyed`);
   }
 }
 

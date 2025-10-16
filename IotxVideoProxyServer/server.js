@@ -103,14 +103,14 @@ function aggressiveModuleCleanup() {
   }
   
   if (cleaned > 0) {
-    console.log(`Cleanup moduli: ${cleaned} moduli rimossi dalla cache`);
+    console.log(`Cleanup modules: ${cleaned} removed from cache`);
   }
 }
 
 // 🔥 FUNZIONE DISTRUZIONE PROXY
 function safelyDestroyProxy(id, proxy) {
   try {
-    console.log(`Distruzione proxy: ${id}`);
+    console.log(`Destoyed proxy: ${id}`);
     
     if (proxy.stopStream) {
       proxy.stopStream();
@@ -131,7 +131,7 @@ function safelyDestroyProxy(id, proxy) {
     }, 100);
     
   } catch (error) {
-    console.error(`Errore distruzione proxy ${id}:`, error);
+    console.error(`Error destroing proxy ${id}:`, error);
   }
 }
 
@@ -177,16 +177,17 @@ function startOptimizedCleanup() {
 
 // 🔥 GRACEFUL SHUTDOWN
 function shutdown() {
-  console.log('Avvio shutdown server...');
+  console.log('Start shutdown server...');
   
   memoryCleanup();
   
-  console.success('Server shutdown completato');
+  console.success('Server shutdown completed');
+  console.log('----------------------------------------------------------------');
   process.exit(0);
 }
 
 function memoryCleanup() {
-  console.log('Avvio memory cleanup...');
+  console.log('Start memory cleanup...');
   
   for (const [id, streamInfo] of proxies.entries()) {
     safelyDestroyProxy(id, streamInfo.proxy);
@@ -228,8 +229,8 @@ app.get('/streams', (req, res) => {
 app.post('/config', (req, res) => {
   const tokenValid = req.body.tokenValid;
   if (!CryptoUtil.isTokenValid(tokenValid)) {
-    console.error('Configurazione in entrata con token non valido:', tokenValid);
-    return res.status(403).json({ error: 'Token non valido' });
+    console.error('Token not valid for configuration:', tokenValid);
+    return res.status(403).json({ error: 'Token not valid' });
   }
 
   const configMap = req.body.streams || {};
@@ -241,14 +242,14 @@ app.post('/config', (req, res) => {
 
   for (const [id, streamInfo] of proxies.entries()) {
     if (!deviceMap[id]) {
-      console.log(`Rimozione stream non più configurato: ${id}`);
+      console.log(`Removing unconfigured proxy: ${id}`);
       safelyDestroyProxy(id, streamInfo.proxy);
       proxies.delete(id);
       memoryStats.cleanups++;
     }
   }
 
-  console.log('/config: Lista Streams aggiornata');
+  console.log('/config: Stream list refreshed');
   //console.log('Lista Streams aggiornata da chiamata /config:', deviceMap);
   res.json({ success: true, devices: Object.keys(deviceMap) });
 });
@@ -277,7 +278,7 @@ app.get('/stream/:id', (req, res) => {
 
   try {
     if (!proxies.has(id)) {
-      console.log(`Creazione nuovo proxy stream: ${id}`);
+      console.log(`Creating new proxy stream: ${id}`);
       proxies.set(id, {
         proxy: new ProxyStream(id, deviceMap[id]),
         lastClientActivity: Date.now(),
@@ -290,30 +291,25 @@ app.get('/stream/:id', (req, res) => {
     streamInfo.lastClientActivity = Date.now();
 
     if (!streamInfo.proxy.isRunning) {
-      console.log(`Avvio ProxyStream: ${id}`);
+      console.log(`Starting ProxyStream: ${id}`);
       streamInfo.proxy.startStream();
     }
 
     res.on('close', () => {
-      console.log(`Remotely close stream ${id}`);
-      if (streamInfo.proxy && streamInfo.proxy.removeClient) {
-        console.log(`Remove client on stream ${id}`);
-        streamInfo.proxy.removeClient(res);
-        safelyDestroyProxy(streamInfo.proxy.id, streamInfo.proxy);
-      }
+      console.log(`Client closed on stream ${id}`);
       const memAfter = process.memoryUsage().heapUsed;
       if (memAfter > memBefore * 1.5) {
         memoryStats.leaksDetected++;
-        console.warn(`Possibile memory leak in stream ${id} (memBefore: ${(memBefore / 1024 / 1024).toFixed(2)}MB, memAfter: ${(memAfter / 1024 / 1024).toFixed(2)}MB -> ${((memAfter - memBefore) / 1024 / 1024).toFixed(2)}MB )`);
+        console.warn(`Possible memory leak in stream ${id} (memBefore: ${(memBefore / 1024 / 1024).toFixed(2)}MB, memAfter: ${(memAfter / 1024 / 1024).toFixed(2)}MB -> ${((memAfter - memBefore) / 1024 / 1024).toFixed(2)}MB )`);
       }
     });
 
     streamInfo.proxy.addClient(res);
 
   } catch (error) {
-    console.error(`Errore stream ${id}:`, error);
+    console.error(`Stream Error ${id}:`, error);
     if (!res.headersSent) {
-      res.status(500).send("Errore interno");
+      res.status(500).send("Internal Error");
     }
   }
 });
@@ -324,7 +320,7 @@ app.post('/stream/:id/close', (req, res) => {
   const streamInfo = proxies.get(id);
   
   if (streamInfo) {
-    console.log(`Chiusura forzata stream: ${id}`);
+    console.log(`Closing forced stream: ${id}`);
     safelyDestroyProxy(id, streamInfo.proxy);
     proxies.delete(id);
     
@@ -332,9 +328,9 @@ app.post('/stream/:id/close', (req, res) => {
       global.gc();
     }
     
-    return res.json({ success: true, message: `Stream ${id} chiuso` });
+    return res.json({ success: true, message: `Stream ${id} closed` });
   }
-  res.status(404).json({ error: 'Stream non trovato' });
+  res.status(404).json({ error: 'Stream not found' });
 });
 
 app.post('/stream/:id/restart', (req, res) => {
@@ -342,7 +338,7 @@ app.post('/stream/:id/restart', (req, res) => {
   const streamInfo = proxies.get(id);
   
   if (streamInfo) {
-    console.log(`Riavvio forzato stream: ${id}`);
+    console.log(`Restart forced stream: ${id}`);
     
     safelyDestroyProxy(id, streamInfo.proxy);
     proxies.delete(id);
@@ -357,15 +353,15 @@ app.post('/stream/:id/restart', (req, res) => {
           createdAt: Date.now()
         });
         newProxy.startStream();
-        console.log(`Stream ${id} riavviato con successo`);
+        console.log(`Stream ${id} restarted`);
       } catch (error) {
-        console.error(`Errore nel riavvio dello stream ${id}:`, error);
+        console.error(`Errore during restarting stream ${id}:`, error);
       }
     }, 1000);
     
-    return res.json({ success: true, message: `Stream ${id} riavviato` });
+    return res.json({ success: true, message: `Stream ${id} restarted` });
   }
-  res.status(404).json({ error: 'Stream non trovato' });
+  res.status(404).json({ error: 'Stream not found' });
 });
 
 // Statistiche
@@ -427,50 +423,52 @@ app.get('/memory/deep', (req, res) => {
 });
 
 app.post('/memory/cleanup', (req, res) => {
-  console.log('Chiamata memory cleanup...');
+  console.log('Called memory cleanup...');
   memoryCleanup();
   memoryStats.cleanups++;
-  res.json({ success: true, message: 'Cleanup completato' });
+  res.json({ success: true, message: 'Cleanup completed' });
 });
 
 // Endpoint di debug
 app.get('/endpoints', (req, res) => {
   const endpoints = [
-    'GET  /                 - Pagina principale',
-    'GET  /streams          - Lista stream disponibili',
-    'POST /config           - Aggiorna configurazione streams',
+    'GET  /                 - Main page',
+    'GET  /streams          - Stream available list',
+    'POST /config           - Refresh streams list',
     'GET  /stream/:id       - Stream video',
-    'POST /stream/:id/close - Chiudi stream specifico', 
-    'POST /stream/:id/restart - Riavvia stream specifico',
-    'GET  /streamstats      - Statistiche streams',
-    'GET  /memory/deep      - Statistiche memoria dettagliate',
-    'POST /memory/cleanup   - Forza cleanup memoria',
-    'GET  /endpoints        - Lista endpoint (questa)'
+    'POST /stream/:id/close - Close stream specified', 
+    'POST /stream/:id/restart - Restart stream specified',
+    'GET  /streamstats      - Streams stats',
+    'GET  /memory/deep      - Detailed Memory stats',
+    'POST /memory/cleanup   - Memory clueanp forced',
+    'GET  /endpoints        - Endpoint list (current)'
   ];
   
   res.json({ 
-    message: 'Endpoint disponibili:',
+    message: 'Available endpoints :',
     endpoints 
   });
 });
 
 // 🔥 AVVIO SERVER
 app.listen(port, () => {
-  console.success(`Video proxy server avviato su http://localhost:${port}`);
-  console.info(`Memory guard attiva`);
+  console.log(``);
+  console.log(`*****************************************************************`);
+  console.success(`Video proxy server started on http://localhost:${port}`);
+  console.info(`Memory guard activated`);
   deviceMap = { ...deviceFixed };
-  console.log('Lista Fixed Streams:', deviceMap);
+  console.log('Fixed Streams List:', deviceMap);
   //startOptimizedCleanup(); non serve all'avvio
 });
 
 // 🔥 GESTIONE SHUTDOWN
 process.on('SIGTERM', () => {
-  console.warn('SIGTERM ricevuto, cleanup...');
+  console.warn('SIGTERM received, cleanup...');
   shutdown();
 });
 
 process.on('SIGINT', () => {
-  console.warn('SIGINT ricevuto, cleanup...');
+  console.warn('SIGINT received, cleanup...');
   shutdown();
 });
 
