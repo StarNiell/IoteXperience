@@ -300,7 +300,7 @@ app.get('/stream/:id', (req, res) => {
     }
 
     res.on('close', () => {
-      this.isOpen = false;
+      isOpen = false;
       console.log(`Client closed on stream ${id} - id: ${resId}`);
       const memAfter = process.memoryUsage().heapUsed;
       if (memAfter > memBefore * 1.5) {
@@ -309,7 +309,7 @@ app.get('/stream/:id', (req, res) => {
       }
     });
 
-    if (this.isOpen)
+    if (isOpen)
     {
       streamInfo.proxy.addClient(res);
     }
