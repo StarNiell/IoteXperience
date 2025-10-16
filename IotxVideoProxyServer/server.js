@@ -257,6 +257,7 @@ app.post('/config', (req, res) => {
 // Stream video
 app.get('/stream/:id', (req, res) => {
   const memBefore = process.memoryUsage().heapUsed;
+  const isOpen = true;
   
   const resId = CryptoUtil.generateRandomString(12);
   res.append('X-UIdenity', resId);
@@ -299,6 +300,7 @@ app.get('/stream/:id', (req, res) => {
     }
 
     res.on('close', () => {
+      this.isOpen = false;
       console.log(`Client closed on stream ${id} - id: ${resId}`);
       const memAfter = process.memoryUsage().heapUsed;
       if (memAfter > memBefore * 1.5) {
@@ -307,7 +309,10 @@ app.get('/stream/:id', (req, res) => {
       }
     });
 
-    streamInfo.proxy.addClient(res);
+    if (this.isOpen)
+    {
+      streamInfo.proxy.addClient(res);
+    }
 
   } catch (error) {
     console.error(`Stream Error ${id}:`, error);
