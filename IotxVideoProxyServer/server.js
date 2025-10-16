@@ -258,6 +258,9 @@ app.post('/config', (req, res) => {
 app.get('/stream/:id', (req, res) => {
   const memBefore = process.memoryUsage().heapUsed;
   
+  const resId = CryptoUtil.generateRandomString(12);
+  req.append('X-UIdenity', resId);
+
   const { id } = req.params;
   const token = req.query.token;
   const trusted = req.query.trusted;
@@ -296,7 +299,7 @@ app.get('/stream/:id', (req, res) => {
     }
 
     res.on('close', () => {
-      console.log(`Client closed on stream ${id}`);
+      console.log(`Client closed on stream ${id} - id: ${resId}`);
       const memAfter = process.memoryUsage().heapUsed;
       if (memAfter > memBefore * 1.5) {
         memoryStats.leaksDetected++;
@@ -313,6 +316,7 @@ app.get('/stream/:id', (req, res) => {
     }
   }
 });
+
 
 // Gestione stream
 app.post('/stream/:id/close', (req, res) => {

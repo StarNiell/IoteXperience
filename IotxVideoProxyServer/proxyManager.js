@@ -41,9 +41,9 @@ class ProxyStream {
         this.clients.add(res);
         console.log(`Client added on stream ${this.id}`);          
 
-        const cleanup = () => {
+        const cleanup = (type) => {
           this.clients.delete(res);
-          console.log(`Client removed from stream ${this.id}`);          
+          console.log(`Client ${type}: removed from stream ${this.id}`);          
           // Cleanup memoria
           res.removeAllListeners();
           if (this.clients.size === 0) {
@@ -55,9 +55,9 @@ class ProxyStream {
           }
         };
 
-        res.on("close", cleanup);
-        res.on("end", cleanup);
-        res.on("error", cleanup);
+        res.on("close", cleanup("close"));
+        res.on("end", cleanup("end"));
+        res.on("error", cleanup("error"));
 
       } else if (attempts < 10) {
         setTimeout(() => waitForBoundary(attempts + 1), 500);
@@ -270,7 +270,7 @@ class ProxyStream {
         });
 
       } catch (error) {
-        console.error("Error HTTP conmection:", error);
+        console.error("Error HTTP connection:", error);
         if (this.isRunning) {
           this.reconnectTimeout = setTimeout(connect, 5000);
         }

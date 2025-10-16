@@ -21,6 +21,16 @@ class CryptoUtil {
     const validToken = CryptoJS.SHA256(today + config.hashingSecret).toString();
     return token === validToken;
   }
+
+  static generateRandomString(lenght) {
+    const characters = 'abcdefghijklmnopqrstuvwxyz0123456789';
+    let result = '';
+    for (let i = 0; i < lenght; i++) {
+      const randomIndex = Math.floor(Math.random() * characters.length);
+      result += characters.charAt(randomIndex);
+    }
+    return result;
+  }
 }
 
 module.exports = CryptoUtil;
