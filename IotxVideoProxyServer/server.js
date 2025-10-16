@@ -257,7 +257,7 @@ app.post('/config', (req, res) => {
 // Stream video
 app.get('/stream/:id', (req, res) => {
   const memBefore = process.memoryUsage().heapUsed;
-  const isOpen = true;
+  let isOpen = true;
   
   const resId = CryptoUtil.generateRandomString(12);
   res.append('X-UIdenity', resId);
