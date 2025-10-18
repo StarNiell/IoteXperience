@@ -201,7 +201,7 @@ class ProxyStream {
       }
 
     // Rimuovi il frame dal buffer
-    this.buffer = this.buffer.sub(end + 2);
+    this.buffer = this.buffer.slice(end + 2);
 
       // Pulizia periodica client morti
       if (Math.random() < 0.1) { // 10% di probabilità per ridurre CPU
