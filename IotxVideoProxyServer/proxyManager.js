@@ -16,6 +16,9 @@ class ProxyStream {
     this.reconnectTimeout = null;
     this.buffer = Buffer.alloc(0);
     this.maxBufferSize = 2 * 1024 * 1024; // 2MB max
+    this._currentFrameChunks = [];
+    this._inFrame = false;
+    this._clientBusy = new WeakMap(); // client -> boolean
     
     // Binding per mantenere il contesto
     this._onFfmpegData = this._onFfmpegData.bind(this);
@@ -46,7 +49,8 @@ class ProxyStream {
           this.clients.delete(res);
           console.log(`Client ${type}: removed from stream ${this.id} - id: ${resId}`);          
           // Cleanup memoria
-          res.removeAllListeners();
+          //res.removeAllListeners();
+          res.removeListener("close", onClose)
           if (this.clients.size === 0) {
             setTimeout(() => {
               if (this.clients.size === 0) {
@@ -56,7 +60,9 @@ class ProxyStream {
           }
         };
 
-        res.on("close", cleanup.bind(this, "close"));
+        //res.on("close", cleanup.bind(this, "close"));
+        const onClose = cleanup.bind(this, "close")
+        res.on("close", onClose)
         res.on("end", cleanup.bind(this, "end"));
         res.on("error", cleanup.bind(this, "error"));
 
@@ -177,36 +183,63 @@ class ProxyStream {
   // Handler per dati FFmpeg - OTTIMIZZATO
   _onFfmpegData(chunk) {
     if (!this.isRunning) return;
-    
-    // Prevenire memory leak per buffer troppo grandi
-    if (this.buffer.length + chunk.length > this.maxBufferSize) {
-      console.warn("Buffer too big, reset");
-      this.buffer = Buffer.alloc(0);
-      return;
+    // chunk è Buffer
+
+    // Scansione byte-by-byte in modo efficiente: usiamo indexOf per i marker
+    const SOI = Buffer.from([0xFF, 0xD8]);
+    const EOI = Buffer.from([0xFF, 0xD9]);
+
+    let offset = 0;
+    while (offset < chunk.length) {
+      // se non siamo dentro frame, cerchiamo SOI
+      if (!this._inFrame) {
+        const start = chunk.indexOf(SOI, offset);
+        if (start === -1) {
+          // no start in questo chunk, skip
+          break;
+        } else {
+          this._inFrame = true;
+          // push da start in poi
+          this._currentFrameChunks.push(chunk.slice(start));
+          // done with chunk because the rest might contain end as well; set offset to start + 2 and continue scanning
+          // but to avoid infinite loop, move offset just after start
+          offset = start + 2;
+          // now loop will continue and maybe find EOI in previously pushed slice
+        }
+      } else {
+        // già dentro frame: cerchiamo EOI nel chunk
+        const end = chunk.indexOf(EOI, offset);
+        if (end === -1) {
+          // tutto il chunk appartiene al frame corrente
+          this._currentFrameChunks.push(chunk.slice(offset));
+          break;
+        } else {
+          // troviamo la fine del frame
+          this._currentFrameChunks.push(chunk.slice(offset, end + 2));
+          // costruiamo il frame completo concatenando solo i chunk che compongono il frame
+          const frame = Buffer.concat(this._currentFrameChunks);
+
+          // controllo dimensione frame e dei clients
+          if (frame.length <= this.maxBufferSize && this.clients.size > 0) {
+            this._broadcastToClients(frame);
+          }
+          // reset stato frame
+          this._currentFrameChunks.length = 0;
+          this._inFrame = false;
+
+          // spostiamo offset dopo end+2 e continuiamo nel chunk (potrebbe esserci un altro frame)
+          offset = end + 2;
+        }
+      }
     }
-    
-    this.buffer = Buffer.concat([this.buffer, chunk]);
 
-    // Separazione frame JPEG con gestione memoria efficiente
-    let start, end;
-    while ((start = this.buffer.indexOf(Buffer.from([0xff, 0xd8]))) !== -1 &&
-           (end = this.buffer.indexOf(Buffer.from([0xff, 0xd9]), start)) !== -1) {
-      
-      const frame = this.buffer.slice(start, end + 2);
-      this.buffer = this.buffer.slice(end + 2);
-
-      // Invia solo se ci sono client connessi
-      if (this.clients.size > 0) {
-        this._broadcastToClients(frame);
-      }
-
-    // Rimuovi il frame dal buffer
-    this.buffer = this.buffer.slice(end + 2);
-
-      // Pulizia periodica client morti
-      if (Math.random() < 0.1) { // 10% di probabilità per ridurre CPU
-        this.cleanupDeadClients();
-      }
+    // Se l'array diventa troppo grande (safety), elimina e resetta
+    let totalBytes = 0;
+    for (const c of this._currentFrameChunks) totalBytes += c.length;
+    if (totalBytes > this.maxBufferSize * 2) {
+      console.warn(`Frame size overflow - clearing current frame chunks (${totalBytes} bytes)`);
+      this._currentFrameChunks.length = 0;
+      this._inFrame = false;
     }
   }
 
@@ -335,7 +368,7 @@ class ProxyStream {
 
   // Handler errori HTTP
   _onHttpError(err) {
-    if (this.isRunningw) {
+    if (this.isRunning) {
       console.error(`HTTP Error: ${err.message}`);
       this.reconnectTimeout = setTimeout(() => {
         if (this.isRunning) this.startHttpStream();
@@ -345,22 +378,47 @@ class ProxyStream {
 
   // 🔹 Broadcast ottimizzato ai client
   _broadcastToClients(frameData) {
+    const header = `${this.boundary}\r\nContent-Type: image/jpeg\r\nContent-Length: ${frameData.length}\r\n\r\n`;
     this.clients.forEach(client => {
-      if (!client.destroyed && !client.finished && client.writable) {
-        try {
-          client.write(`${this.boundary}\r\n`);
-          client.write("Content-Type: image/jpeg\r\n");
-          client.write(`Content-Length: ${frameData.length}\r\n\r\n`);
-          client.write(frameData);
-          client.write("\r\n");
-        } catch (err) {
-          // Client problematico, rimuovi
+      try {
+        if (client.destroyed || client.finished || client.writableEnded) {
           this.clients.delete(client);
-          client.destroy();
+          return;
         }
-      } else {
-        // Client morto, rimuovi
+        // se client è busy (ha backpressure), salta
+        if (this._clientBusy.get(client)) {
+          // potresti anche contare skip per decidere di rimuoverlo
+          return;
+        }
+
+        const ok1 = client.write(header);
+        const ok2 = client.write(frameData);
+        const ok3 = client.write("\r\n");
+
+        // se una delle write torna false segna busy e attendi drain
+        if (!ok1 || !ok2 || !ok3) {
+          this._clientBusy.set(client, true);
+          const onDrain = () => {
+            this._clientBusy.set(client, false);
+            client.removeListener("drain", onDrain);
+          };
+          client.on("drain", onDrain);
+
+          // timeout di sicurezza: se il client non svuota il buffer entro X secondi, rimuovilo
+          const t = setTimeout(() => {
+            if (this._clientBusy.get(client)) {
+              this._clientBusy.delete(client);
+              client.destroy();
+              this.clients.delete(client);
+              console.log("Removed slow client after timeout. Count:", this.clients.size);
+            }
+          }, 10000);
+          // pulisci timeout se il client riceve drain prima
+          client.once("drain", () => clearTimeout(t));
+        }
+      } catch (err) {
         this.clients.delete(client);
+        try { client.destroy(); } catch(e){}
       }
     });
   }
