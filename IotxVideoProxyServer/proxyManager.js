@@ -310,7 +310,6 @@ class ProxyStream {
       }
       // Pulizia periodica client morti
       if (Math.random() < 0.1) { // 10% di probabilità per ridurre CPU
-        console.log("[TST] Cleaning up dead clients...");
         this.cleanupDeadClients();
       }
     }
