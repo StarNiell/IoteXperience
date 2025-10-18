@@ -97,26 +97,31 @@ class ProxyStream {
 
     // Ferma FFmpeg e rimuovi listener
     if (this.ffmpegProcess) {
+      console.log(`[TST] Removing all listeners for stream ${this.id} and `);
       this.ffmpegProcess.stdout?.removeListener("data", this._onFfmpegData);
       this.ffmpegProcess.stderr?.removeListener("data", this._onFfmpegData);
       this.ffmpegProcess.removeListener("close", this._onFfmpegClose);
       this.ffmpegProcess.removeListener("error", this._onFfmpegError);
       
+      console.log(`[TST] Killing FFmpeg process for stream ${this.id}`);
       this.ffmpegProcess.kill('SIGTERM');
       this.ffmpegProcess = null;
     }
 
     // Ferma richiesta HTTP e rimuovi listener
     if (this.httpRequest) {
+      console.log(`[TST] Removing httpRequest listners for stream ${this.id}`);
       this.httpRequest.removeListener("error", this._onHttpError);
       this.httpRequest.destroy();
       this.httpRequest = null;
     }
 
     // Libera memoria del buffer
+    console.log(`[TST] Free the buffer for stream ${this.id}`);
     this.buffer = Buffer.alloc(0);
 
     if (this.httpResponse) {
+      console.log(`[TST] Removing httpResponse listners for stream ${this.id}`);
       this.httpResponse.removeAllListeners();
       this.httpResponse.destroy && this.httpResponse.destroy();
       this.httpResponse = null;
