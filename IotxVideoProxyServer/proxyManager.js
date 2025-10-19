@@ -46,7 +46,8 @@ class ProxyStream {
           this.clients.delete(res);
           console.log(`Client ${type}: removed from stream ${this.id} - id: ${resId}`);          
           // Cleanup memoria
-          res.removeAllListeners();
+          r//es.removeAllListeners();
+          res.removeListener("close", onClose)
           if (this.clients.size === 0) {
             setTimeout(() => {
               if (this.clients.size === 0) {
@@ -56,7 +57,10 @@ class ProxyStream {
           }
         };
 
-        res.on("close", cleanup.bind(this, "close"));
+        //res.on("close", cleanup.bind(this, "close"));
+        const onClose = cleanup.bind(this, "close"); 
+        res.on("close", onClose);
+
         res.on("end", cleanup.bind(this, "end"));
         res.on("error", cleanup.bind(this, "error"));
 
