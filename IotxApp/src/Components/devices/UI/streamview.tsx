@@ -31,43 +31,46 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
             </center>
 
             <div
-            className="device-ui relative flex items-center justify-center rounded bg-black"
-            style={{
-                minHeight: '153px',
-                width: '100%',
-            }}
-            >
-            {/* Spinner di caricamento */}
-            {!loaded && (
-                <div className="absolute flex flex-col items-center justify-center text-white z-10">
-                <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                <p className="mt-2 text-sm opacity-80">Inizializzazione video…</p>
-                </div>
-            )}
-
-            {/* Immagine streaming */}
-            <a
-                href={streamProxyUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block w-full h-full"
-            >
-                <img
-                src={streamProxyUrl}
-                alt={`Stream ${stream_id}`}
-                className={`transition-opacity duration-700 block mx-auto ${
-                    loaded ? 'opacity-100' : 'opacity-0'
-                }`}
+                className="device-ui relative flex items-center justify-center rounded"
                 style={{
-                    maxWidth: '100%',
-                    maxHeight: '100%',
-                    objectFit: 'contain',
-                    objectPosition: 'center',
+                    minHeight: '153px',
+                    width: '100%',
+                    padding: '4px',          // 🔹 margine interno
+                    backgroundColor: 'transparent', // 🔹 nessuno sfondo (lascia intravedere quello esterno)
                 }}
-                onLoad={() => setLoaded(true)}
-                onError={() => setLoaded(false)}
-                />
-            </a>
+                >
+                {/* Spinner di caricamento */}
+                {!loaded && (
+                    <div className="absolute flex flex-col items-center justify-center text-dark z-10">
+                    <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                    <p className="mt-2 text-sm opacity-80">Inizializzazione video…</p>
+                    </div>
+                )}
+
+                {/* Immagine streaming */}
+                <a
+                    href={streamProxyUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block w-full h-full"
+                >
+                    <img
+                    src={streamProxyUrl}
+                    alt={`Stream ${stream_id}`}
+                    className={`transition-opacity duration-700 block mx-auto ${
+                        loaded ? 'opacity-100' : 'opacity-0'
+                    }`}
+                    style={{
+                        maxWidth: '100%',
+                        maxHeight: '100%',
+                        objectFit: 'contain',
+                        objectPosition: 'center',
+                        borderRadius: '6px',  // 🔹 facoltativo, per ammorbidire il bordo
+                    }}
+                    onLoad={() => setLoaded(true)}
+                    onError={() => setLoaded(false)}
+                    />
+                </a>
             </div>
         </div>
     );
