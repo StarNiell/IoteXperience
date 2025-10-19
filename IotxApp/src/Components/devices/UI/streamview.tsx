@@ -30,27 +30,33 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                 </div>
             </center>
 
-            <div className="device-ui relative flex items-center justify-center overflow-hidden rounded bg-black" style={{ minHeight: "153px" }}>
-                {/* Spinner di caricamento */}
-                {!loaded && (
-                    <div className="absolute flex flex-col items-center justify-center text-white z-10">
-                        <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                        <p className="mt-2 text-sm opacity-80">Inizializzazione video…</p>
-                    </div>
-                )}
+            <div
+            className="device-ui relative flex items-center justify-center overflow-hidden rounded bg-black"
+            style={{
+                minHeight: '153px',
+                aspectRatio: '16 / 9', // 🔧 forza un contenitore proporzionato
+            }}
+            >
+            {/* Spinner di caricamento */}
+            {!loaded && (
+                <div className="absolute flex flex-col items-center justify-center text-white z-10">
+                <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
+                <p className="mt-2 text-sm opacity-80">Inizializzazione video…</p>
+                </div>
+            )}
 
-                {/* Immagine streaming */}
-                <a href={streamProxyUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
-                    <img
-                        src={streamProxyUrl}
-                        alt={`Stream ${stream_id}`}
-                        className={`transition-opacity duration-700 w-full h-full object-contain ${
-                            loaded ? 'opacity-100' : 'opacity-0'
-                        }`}
-                        onLoad={() => setLoaded(true)}
-                        onError={() => setLoaded(false)}
-                    />
-                </a>
+            {/* Immagine streaming */}
+            <a href={streamProxyUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+                <img
+                src={streamProxyUrl}
+                alt={`Stream ${stream_id}`}
+                className={`transition-opacity duration-700 absolute top-0 left-0 w-full h-full object-contain ${
+                    loaded ? 'opacity-100' : 'opacity-0'
+                }`}
+                onLoad={() => setLoaded(true)}
+                onError={() => setLoaded(false)}
+                />
+            </a>
             </div>
         </div>
     );
