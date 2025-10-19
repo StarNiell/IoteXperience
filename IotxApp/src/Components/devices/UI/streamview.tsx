@@ -31,10 +31,10 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
             </center>
 
             <div
-            className="device-ui relative flex items-center justify-center overflow-hidden rounded bg-black"
+            className="device-ui relative flex items-center justify-center rounded bg-black"
             style={{
                 minHeight: '153px',
-                aspectRatio: '16 / 9', // 🔧 forza un contenitore proporzionato
+                width: '100%',
             }}
             >
             {/* Spinner di caricamento */}
@@ -46,13 +46,24 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
             )}
 
             {/* Immagine streaming */}
-            <a href={streamProxyUrl} target="_blank" rel="noopener noreferrer" className="block w-full h-full">
+            <a
+                href={streamProxyUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="block w-full h-full"
+            >
                 <img
                 src={streamProxyUrl}
                 alt={`Stream ${stream_id}`}
-                className={`transition-opacity duration-700 absolute top-0 left-0 w-full h-full object-contain ${
+                className={`transition-opacity duration-700 block mx-auto ${
                     loaded ? 'opacity-100' : 'opacity-0'
                 }`}
+                style={{
+                    maxWidth: '100%',
+                    maxHeight: '100%',
+                    objectFit: 'contain',
+                    objectPosition: 'center',
+                }}
                 onLoad={() => setLoaded(true)}
                 onError={() => setLoaded(false)}
                 />
