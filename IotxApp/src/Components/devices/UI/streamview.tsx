@@ -43,7 +43,7 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                 {!loaded && (
                     <div className="absolute flex flex-col items-center justify-center text-dark z-10">
                     <div className="w-10 h-10 border-4 border-gray-300 border-t-blue-500 rounded-full animate-spin"></div>
-                    <p className="mt-2 font-small text-gray-100 drop-shadow-sm">Inizializzazione video…</p>
+                    <p className="mt-2 font-small text-center text-white-60 drop-shadow-sm">Waiting stream...</p>
                     </div>
                 )}
 
