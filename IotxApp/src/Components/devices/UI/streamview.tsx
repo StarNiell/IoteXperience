@@ -41,27 +41,14 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                 >
                 {/* Spinner di caricamento */}
                 {!loaded && (
-                    <div
-                        className="position-absolute top-0 start-0 w-100 h-100 d-flex flex-column justify-content-center align-items-center"
-                        style={{
-                            backgroundColor: "rgba(0,0,0,0.3)",
-                            borderRadius: "8px",
-                            zIndex: 10,
-                        }}
-                    >
-                        <div
-                            className="spinner-border text-light mb-3"
+                    <div className="absolute flex flex-col items-center justify-center text-dark z-10">
+                    <div className="spinner-border text-light mb-3"
                             role="status"
-                            style={{ width: "2.5rem", height: "2.5rem" }}
-                        >
-                            <span className="visually-hidden">Loading...</span>
-                        </div>
-                        <p className="text-light fs-6 fw-semibold" style={{ opacity: 0.9 }}>
-                            Waiting stream...
-                        </p>
+                            style={{ width: "2.5rem", height: "2.5rem" }}></div>
+                    <p className="mt-2 font-small text-center text-light drop-shadow-sm">Waiting stream...</p>
                     </div>
                 )}
-                
+
                 {/* Immagine streaming */}
                 <a
                     href={streamProxyUrl}
