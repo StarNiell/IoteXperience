@@ -41,11 +41,10 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                 >
                 {/* Spinner di caricamento */}
                 {!loaded && (
-                    <div className="absolute flex flex-col items-center justify-center text-dark z-10">
-                    <div className="spinner-border text-center text-light mb-3"
-                            role="status"
-                            style={{ width: "2.5rem", height: "2.5rem" }}></div>
-                    <p className="mt-2 font-small text-center text-light drop-shadow-sm">Waiting stream...</p>
+                    <div className="d-flex justify-content-center">
+                        <div className="spinner-border text-light" role="status">
+                            <span className="visually-hidden">Loading...</span>
+                        </div>
                     </div>
                 )}
 
