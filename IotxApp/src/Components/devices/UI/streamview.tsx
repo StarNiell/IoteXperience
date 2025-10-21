@@ -42,7 +42,7 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                 {/* Spinner di caricamento */}
                 {!loaded && (
                     <div className="absolute flex flex-col items-center justify-center text-dark z-10">
-                    <div className="position-absolute top-50 start-50 translate-middlespinner-border text-light mb-3"
+                    <div className="position-absolute top-50 start-50 translate-middle spinner-border text-light mb-3"
                             role="status"
                             style={{ width: "2.5rem", height: "2.5rem" }}></div>
                     <p className="mt-2 font-small text-center text-light drop-shadow-sm">Waiting stream...</p>
