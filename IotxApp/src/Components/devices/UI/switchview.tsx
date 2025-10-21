@@ -46,7 +46,7 @@ const SwitchViewUI: React.FC<{subscription: string,
 
       return (
         <>
-            <div className="bg-dark rounded p-1" style={{ minHeight: '165px' }} >
+            <div className="bg-dark rounded p-1" style={{ minHeight: '196px' }} >
                 <center><div style={{ minHeight: "25px" }} className={`${bgClassName}  rounded text-dark`} >{caption}</div></center>
                 <div className="device-ui" style={{ minHeight: "153px" }}>
                     <center><span onClick={handlePublish} className={switchState + " display-1"} style={{ padding: "auto", cursor: "pointer", fontSize: "80px" }}><FontAwesomeIcon icon={!button ? faDotCircle : faCircleDot} /></span></center>
