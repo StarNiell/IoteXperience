@@ -49,29 +49,31 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                 )}
 
                 {/* Immagine streaming */}
-                <a
-                    href={streamProxyUrl}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block w-full h-full"
-                >
-                    <img
-                    src={streamProxyUrl}
-                    alt={`Stream ${stream_id}`}
-                    className={`transition-opacity duration-700 block mx-auto ${
-                        loaded ? 'opacity-100' : 'opacity-0'
-                    }`}
-                    style={{
-                        maxWidth: '100%',
-                        maxHeight: '100%',
-                        objectFit: 'contain',
-                        objectPosition: 'center',
-                        borderRadius: '6px',  // 🔹 facoltativo, per ammorbidire il bordo
-                    }}
-                    onLoad={() => setLoaded(true)}
-                    onError={() => setLoaded(false)}
-                    />
-                </a>
+                {loaded && (
+                    <a
+                        href={streamProxyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="block w-full h-full"
+                    >
+                        <img
+                        src={streamProxyUrl}
+                        alt={`Stream ${stream_id}`}
+                        className={`transition-opacity duration-700 block mx-auto ${
+                            loaded ? 'opacity-100' : 'opacity-0'
+                        }`}
+                        style={{
+                            maxWidth: '100%',
+                            maxHeight: '100%',
+                            objectFit: 'contain',
+                            objectPosition: 'center',
+                            borderRadius: '6px',  // 🔹 facoltativo, per ammorbidire il bordo
+                        }}
+                        onLoad={() => setLoaded(true)}
+                        onError={() => setLoaded(false)}
+                        />
+                    </a>
+                )}
             </div>
         </div>
     );
