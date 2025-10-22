@@ -20,11 +20,11 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
     }, [isActive, stream_id]);
 
     return (
-        <div className="bg-dark rounded p-1" style={{ minHeight: '196px' }}>
+        <div className="bg-dark rounded p-1" style={{ minHeight: '205px' }}>
             <center>
                 <div
                     style={{ minHeight: "25px" }}
-                    className="bg-lightgray rounded text-dark"
+                    className="bg-lightgray rounded m-1 text-dark"
                 >
                     {stream_id}
                 </div>
@@ -33,7 +33,7 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
             <div
                 className="device-ui position-relative d-flex justify-content-center align-items-center rounded"
                 style={{
-                    minHeight: '153px',
+                    minHeight: '163px',
                     width: '100%',
                     padding: '4px',
                     backgroundColor: 'transparent',

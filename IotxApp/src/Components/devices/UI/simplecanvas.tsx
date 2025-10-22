@@ -128,9 +128,9 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
     render() {
         return (
-            <div className="bg-dark rounded p-1" style={{ minHeight: '196px' }} >
-                <center><div style={{ minHeight: "25px" }} className={`${this.bgClassName} rounded text-dark`} >{this.props.caption}</div></center>
-                <div className="device-ui" style={{ height: "153px" }}>
+            <div className="bg-dark rounded p-1" style={{ minHeight: '205px' }} >
+                <center><div style={{ minHeight: "25px" }} className={`${this.bgClassName} rounded m-1 text-dark`} >{this.props.caption}</div></center>
+                <div className="device-ui" style={{ height: "147px" }}>
                     <canvas ref={this.canvas}  />
                 </div>
             </div>

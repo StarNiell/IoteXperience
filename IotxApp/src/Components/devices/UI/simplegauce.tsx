@@ -119,7 +119,7 @@ class SimpleGauge extends React.Component<SimpleGaugeProps> {
     }
     render() {
         return (
-            <div className="bg-dark rounded p-1" style={{ minHeight: '196px' }} >
+            <div className="bg-dark rounded p-1" style={{ minHeight: '205px' }} >
                 <div className="container" style={{ width: '100%' }} ref={this.container}>
                     <svg className="gauge-svg">
                         <circle ref={this.base}></circle>
