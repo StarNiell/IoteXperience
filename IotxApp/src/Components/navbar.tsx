@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../Auth/auth';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
@@ -8,7 +9,17 @@ import "bootstrap/dist/js/bootstrap.bundle.min";
 
 function Navbar() {
     const { auth, user, dashboards } = useAuth();
-    
+    const navButton = useRef<HTMLButtonElement>(null);
+    const linksContainerRef = useRef<HTMLDivElement>(null);
+
+    function collapseNav() {
+        if (navButton.current != null && linksContainerRef.current != null)
+        {
+            navButton.current.classList.add("collapsed");
+            linksContainerRef.current.classList.remove("show");
+        }
+    }
+
     var myUser = "empty";
     var isAdmin: boolean = false;
 
@@ -19,6 +30,8 @@ function Navbar() {
                 myUser = user.data.User.Username;
                 isAdmin = user.data.User.admin;
             }
+        
+    
 
     return (
         <>
@@ -26,10 +39,10 @@ function Navbar() {
                 <nav className="navbar navbar-expand-lg navbar-dark bg-dark w-100">
                     <div className="container-fluid">
                         <NavLink to="/" className="navbar-brand"><img src={iotxLogo} alt="iotx logo" height={'40px'} /></NavLink>
-                        <button className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                        <button ref={navButton} className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                             <span className="navbar-toggler-icon"></span>
                         </button>
-                        <div className="collapse navbar-collapse" id="navbarNav">
+                        <div ref={linksContainerRef} className="collapse navbar-collapse" id="navbarNav">
                             <ul className="navbar-nav">
                             <li className="nav-item">
                                     <NavLink to="/" className="nav-link"><FontAwesomeIcon icon={faHome} /><span style={{ paddingLeft: '4px' }}>Home</span></NavLink>
@@ -50,7 +63,7 @@ function Navbar() {
                                             <ul className="dropdown-menu dropdown-menu-dark">
                                                 {dashboards.map((dashboard) => (
                                                     <li key={dashboard.id}>
-                                                        <NavLink to={`/dashboard/${dashboard.id}`} className="dropdown-item">{dashboard.name}</NavLink>
+                                                        <NavLink onClick={collapseNav} to={`/dashboard/${dashboard.id}`} className="dropdown-item">{dashboard.name}</NavLink>
                                                     </li>
                                                 ))}
                                             </ul>
