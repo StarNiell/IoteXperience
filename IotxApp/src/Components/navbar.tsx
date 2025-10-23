@@ -20,18 +20,13 @@ function Navbar() {
         }
     }
 
-    var myUser = "empty";
-    var isAdmin: boolean = false;
+    let myUser: string = "empty";
+    let isAdmin: boolean = false;
 
-    if (user)
-        if (user.data)
-            if (user.data.User)
-            {
-                myUser = user.data.User.Username;
-                isAdmin = user.data.User.admin;
-            }
-        
-    
+    if (user?.data?.User) {
+        myUser = user.data.User.Username;
+        isAdmin = user.data.User.admin;
+    }
 
     return (
         <>
@@ -81,24 +76,24 @@ function Navbar() {
                                             <ul className="dropdown-menu dropdown-menu-dark">
                                                 {isAdmin && (
                                                 <>
-                                                <li><NavLink to="/devices" className="dropdown-item"><FontAwesomeIcon icon={faTableList} /><span style={{ paddingLeft: '4px' }}>Device List</span></NavLink></li>
-                                                <li><NavLink to="/streams" className="dropdown-item"><FontAwesomeIcon icon={faVideo} /><span style={{ paddingLeft: '4px' }}>Stream List</span></NavLink></li>
-                                                <li><NavLink to="/dashboards" className="dropdown-item"><FontAwesomeIcon icon={faTableColumns} /><span style={{ paddingLeft: '4px' }}>Dashboards</span></NavLink></li>
+                                                <li><NavLink onClick={collapseNav} to="/devices" className="dropdown-item"><FontAwesomeIcon icon={faTableList} /><span style={{ paddingLeft: '4px' }}>Device List</span></NavLink></li>
+                                                <li><NavLink onClick={collapseNav} to="/streams" className="dropdown-item"><FontAwesomeIcon icon={faVideo} /><span style={{ paddingLeft: '4px' }}>Stream List</span></NavLink></li>
+                                                <li><NavLink onClick={collapseNav} to="/dashboards" className="dropdown-item"><FontAwesomeIcon icon={faTableColumns} /><span style={{ paddingLeft: '4px' }}>Dashboards</span></NavLink></li>
                                                 <li><NavLink to="/users" className="dropdown-item"><FontAwesomeIcon icon={faUsers} /><span style={{ paddingLeft: '4px' }}>Users</span></NavLink></li>
                                                 <li><div className="dropdown-divider"></div></li> {/* Separatore */}
                                                 </>
                                                 )}
-                                                <li><NavLink to="/profile" className="dropdown-item"><FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>Profile</span></NavLink></li>
-                                                <li><NavLink to="/logout" className="dropdown-item"><FontAwesomeIcon icon={faDoorOpen} /><span>Logout</span></NavLink></li>
+                                                <li><NavLink onClick={collapseNav} to="/profile" className="dropdown-item"><FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>Profile</span></NavLink></li>
+                                                <li><NavLink onClick={collapseNav} to="/logout" className="dropdown-item"><FontAwesomeIcon icon={faDoorOpen} /><span>Logout</span></NavLink></li>
                                             </ul>
                                         </li>
                                     </>) : (
                                     <>
                                         <li>
-                                            <NavLink to="/login" className="nav-link"><FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>Log in</span></NavLink>
+                                            <NavLink onClick={collapseNav} to="/login" className="nav-link"><FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>Log in</span></NavLink>
                                         </li>
                                         <li>
-                                            <NavLink to="/register" className="nav-link"><FontAwesomeIcon icon={faArrowRightToBracket} /><span style={{ paddingLeft: '4px' }}>Sign up</span></NavLink>
+                                            <NavLink onClick={collapseNav} to="/register" className="nav-link"><FontAwesomeIcon icon={faArrowRightToBracket} /><span style={{ paddingLeft: '4px' }}>Sign up</span></NavLink>
                                         </li>
                                     </>
                                 )}
