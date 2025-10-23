@@ -40,7 +40,7 @@ function Navbar() {
                         <div ref={linksContainerRef} className="collapse navbar-collapse" id="navbarNav">
                             <ul className="navbar-nav">
                             <li className="nav-item">
-                                    <NavLink to="/" className="nav-link"><FontAwesomeIcon icon={faHome} /><span style={{ paddingLeft: '4px' }}>Home</span></NavLink>
+                                    <NavLink onClick={collapseNav} to="/" className="nav-link"><FontAwesomeIcon icon={faHome} /><span style={{ paddingLeft: '4px' }}>Home</span></NavLink>
                                 </li>
                                 {
                                     /*
