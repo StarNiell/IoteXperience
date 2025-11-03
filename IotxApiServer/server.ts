@@ -95,7 +95,8 @@ class Server {
             }
             catch (error) {
                 console.log(error.message);
-                res.sendStatus(500);
+                if (!res.headersSent)
+                    res.sendStatus(500);
             }
 
         });
