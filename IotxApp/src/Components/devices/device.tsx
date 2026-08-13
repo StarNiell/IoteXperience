@@ -67,8 +67,8 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
                 caption={device.title !== "" ? device.title : "Sensor"} 
                 minVal={device.min} 
                 maxVal={device.max} 
-                rangeValues={[device.max, (device.max * 0.6), (device.max / 2), (device.max * 0.34), (device.max * 0.3)]} 
-                rangeColors={['red', 'orange', 'green', 'orange', '#0d6efd']} 
+                rangeValues={[device.max, (device.max * 0.567), (device.max * 0.417), (device.max * 0.284)]} 
+                rangeColors={['red', 'orange', 'green', '#0d6efd']} 
                 unit={device.unit}
                 />;
             break;
