@@ -66,7 +66,7 @@ const Dashboard: React.FC = () => {
                 device.offset = apiDevice?.offset || 0;
                 device.offset2 = apiDevice?.offset2 || 0;
                 device.min = apiDevice?.min || 0;
-                device.max = apiDevice?.max || 100;
+                device.max = apiDevice?.max || 60;
             });
             setMergedDevices(merged);
         }
@@ -93,7 +93,7 @@ const Dashboard: React.FC = () => {
                     device.offset = parseFloat(apiDevice?.offset) || 0;
                     device.offset2 = parseFloat(apiDevice?.offset2) || 0;
                     device.min = parseFloat(apiDevice?.min) || 0;
-                    device.max = parseFloat(apiDevice?.max) || 100;
+                    device.max = parseFloat(apiDevice?.max) || 60;
                 });
                 // Workaround when refresh page
                 /*

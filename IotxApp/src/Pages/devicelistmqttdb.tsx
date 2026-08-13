@@ -30,7 +30,7 @@ const DeviceListMqttDB: React.FC<{}> = () => {
             device.title = device.type + " " + device.device_id;
             device.description = device.title;
             device.min = 0;
-            device.max = 100;
+            device.max = 60;
             device.step = 1;
             const data = await ApiCalls({ token: token, device: device }, `${config.wsDatabaseUrl}/adddevice/`, "post", setAuth, setUser);
             console.log(data);
