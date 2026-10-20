@@ -4,11 +4,15 @@ import { UserDashboardModel } from "./userDashboardModel";
 import { UserModel } from "./userModel";
 import { StreamModel } from "./streamModel";
 import { Pool, PoolClient } from "pg";
+import { hashPassword, verifyPassword, verifyDummy, plaintextEquals, isPasswordHash } from "./passwords";
 
 export interface AuthUser {
     id: number;
     admin: boolean;
 }
+
+// Result of creating or editing a user
+export type UserSaveResult = "ok" | "duplicate" | "error";
 
 class Postgres {
     private host: string;
@@ -17,8 +21,12 @@ class Postgres {
     private password: string;
     private database: string;
     private pool: Pool;
+    // Transition period: also keep the legacy plaintext column "password" up to date and use it
+    // as the reference at login, because the old server version still reads it.
+    private plaintextSync: boolean;
 
-    constructor(host: string, port: number, user: string, password: string, database: string) {
+    constructor(host: string, port: number, user: string, password: string, database: string, plaintextSync: boolean = true) {
+        this.plaintextSync = plaintextSync;
         this.host = host;
         this.port = port;
         this.user = user;
@@ -40,6 +48,11 @@ class Postgres {
         this.pool.on('error', (err) => {
             console.error('PostgreSQL idle client error:', err.message);
         });
+    }
+
+    // Closes all the pool connections (used by command-line tools)
+    public async close(): Promise<void> {
+        await this.pool.end();
     }
 
     // Returns a client from the pool: it must be released with connection?.release()
@@ -501,14 +514,14 @@ class Postgres {
     }
 
     public async GetUsers() {
-        var rows: DashboardModel[] = [];
+        var rows: any[] = [];
         try {
             var connection = await this.getConnection();
             var res
             if (res = await connection.query("SELECT * FROM Users ORDER BY username")) {
-                // Passwords are never sent to the client
+                // Passwords and password hashes are never sent to the client
                 rows = res.rows.map((row) => {
-                    const { password, ...user } = row;
+                    const { password, password_hash, ...user } = row;
                     return user;
                 });
             }
@@ -552,33 +565,42 @@ class Postgres {
         return ret;
     }
 
-    public async NewUser(user: UserModel): Promise<boolean> {
-        var ret = false;
+    // True if another user (id <> excludeId) already uses this username or email,
+    // either as username or as email (the login accepts both).
+    private async UserExists(connection: PoolClient, username: string, email: string | null, excludeId: number): Promise<boolean> {
+        const res = await connection.query(
+            "SELECT COUNT(*) AS n FROM users WHERE id <> $3 AND (username IN ($1, $2) OR email IN ($1, $2))",
+            [username, email, excludeId]);
+        return parseInt(res.rows[0].n, 10) > 0;
+    }
+
+    public async NewUser(user: UserModel): Promise<UserSaveResult> {
+        var ret: UserSaveResult = "error";
         try {
+            // Empty email: not considered in the duplicate check
+            const email = (typeof user.email === "string" && user.email.trim() !== "") ? user.email.trim() : null;
+            const hash = await hashPassword(user.password);
             var connection = await this.getConnection();
 
-            var res
-            if (res = await connection.query("SELECT COUNT(*) as Exists FROM dashboards WHERE name = $1", [user.username])) {
-                if (res.rows[0].exists > 0) {
-                    ret = true;
-                }
+            if (await this.UserExists(connection, user.username, email, 0)) {
+                ret = "duplicate";
             }
-
-            if (!ret) {
+            else {
                 let sql: string = "INSERT INTO users ("
                 sql += "username, "
                 sql += "password, "
+                sql += "password_hash, "
                 sql += "email, "
                 sql += "admin) "
-                sql += "VALUES ($1, $2, $3, $4);"
-                await connection.query(sql, [user.username, user.password, user.email, user.admin]);
-                ret = true;
+                sql += "VALUES ($1, $2, $3, $4, $5);"
+                // The plaintext column is NOT NULL: it holds the password only during the transition period
+                await connection.query(sql, [user.username, this.plaintextSync ? user.password : "", hash, user.email, user.admin === true]);
+                ret = "ok";
             }
-
         }
         catch (err) {
             console.error(err);
-            ret = false;
+            ret = "error";
         }
         finally {
             connection?.release();
@@ -586,35 +608,45 @@ class Postgres {
         return ret;
     }
 
-    public async EditUser(user: UserModel): Promise<boolean> {
-        var ret = false;
+    // Updates a user. The password is changed only when a new, non-empty one is given:
+    // in that case all the user's sessions are closed, except keepToken (the caller's own session).
+    public async EditUser(user: UserModel, keepToken: string = ""): Promise<UserSaveResult> {
+        var ret: UserSaveResult = "error";
         try {
+            // Empty email: not considered in the duplicate check
+            const email = (typeof user.email === "string" && user.email.trim() !== "") ? user.email.trim() : null;
+            const newPassword = (typeof user.password === "string" && user.password !== "") ? user.password : null;
+            const hash = newPassword ? await hashPassword(newPassword) : null;
             var connection = await this.getConnection();
 
-            var res
-            if (res = await connection.query("SELECT COUNT(*) as Exists FROM users WHERE username = $1 and id <> $2", [user.username, user.id])) {
-                if (res.rows[0].exists > 0) {
-                    ret = true;
-                }
+            if (await this.UserExists(connection, user.username, email, user.id)) {
+                ret = "duplicate";
             }
-
-            if (!ret) {
-                // The password is changed only when a new, non-empty one is given
-                const newPassword = (typeof user.password === "string" && user.password !== "") ? user.password : null;
+            else {
+                await connection.query("BEGIN");
                 let sql: string = "UPDATE users SET "
-                sql += "username = ($1), "
-                sql += "password = COALESCE($2, password), "
-                sql += "email = ($3), "
-                sql += "admin = ($4) "
-                sql += "WHERE id = ($5);"
-                await connection.query(sql, [user.username, newPassword, user.email, user.admin, user.id]);
-                ret = true;
-            }
+                sql += "username = $1, "
+                sql += "email = $2, "
+                sql += "admin = $3 "
+                sql += "WHERE id = $4;"
+                await connection.query(sql, [user.username, user.email, user.admin === true, user.id]);
 
+                if (hash) {
+                    await connection.query(
+                        "UPDATE users SET password_hash = $1, password = $2 WHERE id = $3;",
+                        [hash, this.plaintextSync ? newPassword : "", user.id]);
+                    await connection.query(
+                        "DELETE FROM tokens WHERE userid = $1 AND token::text <> $2;",
+                        [user.id, keepToken ?? ""]);
+                }
+                await connection.query("COMMIT");
+                ret = "ok";
+            }
         }
         catch (err) {
             console.error(err);
-            ret = false;
+            try { await connection?.query("ROLLBACK"); } catch { }
+            ret = "error";
         }
         finally {
             connection?.release();
@@ -644,31 +676,62 @@ class Postgres {
         return ret;
     }
 
+    // Checks the password of one users row.
+    // During the transition period (plaintextSync) the plaintext column, when not empty, is the
+    // reference, because the old server version may have changed it: the hash is then refreshed.
+    // Otherwise only the hash is used.
+    private async CheckUserPassword(connection: PoolClient, row: any, password: string): Promise<boolean> {
+        const hash: string | null = isPasswordHash(row.password_hash) ? row.password_hash : null;
+        const plain: string = (typeof row.password === "string") ? row.password : "";
+
+        if (this.plaintextSync && plain !== "") {
+            if (!plaintextEquals(password, plain)) return false;
+            if (!hash || !(await verifyPassword(password, hash))) {
+                await connection.query("UPDATE users SET password_hash = $1 WHERE id = $2", [await hashPassword(password), row.id]);
+            }
+            return true;
+        }
+        if (!hash) return false;
+        return await verifyPassword(password, hash);
+    }
+
     public async DoLogin(username: string, password: string): Promise<any> {
         var ret = {};
         try {
             var connection = await this.getConnection();
-            let sql: string = "";
-            sql = "SELECT u.id, u.username, u.email, ud.dashboardid, ud.defaultdb, u.admin ";
-            sql += "FROM users u ";
-            sql += "LEFT JOIN user_dashboards ud ON u.id = ud.userid ";
-            sql += "WHERE (u.username = $1 OR u.email = $1) AND u.password = $2 ";
-            sql += "ORDER BY ud.defaultdb DESC ";
-            sql += "LIMIT 1; ";
-            var res = await connection.query(sql, [username, password]);
-            if (res.rows.length > 0) {
-                var Token = await this.GetNewToken(res.rows[0].id);
+            // username and email are not unique in the table: check every match
+            var res = await connection.query(
+                "SELECT id, username, email, admin, password, password_hash FROM users WHERE username = $1 OR email = $1 ORDER BY id",
+                [username]);
+
+            let found: any = null;
+            for (const row of res.rows) {
+                if (await this.CheckUserPassword(connection, row, password)) {
+                    found = row;
+                    break;
+                }
+            }
+            if (!found && (res.rows.length === 0 || this.plaintextSync)) {
+                // Similar response time whether the user exists or not
+                await verifyDummy(password);
+            }
+
+            if (found) {
+                let sql: string = "SELECT dashboardid FROM user_dashboards WHERE userid = $1 ";
+                sql += "ORDER BY defaultdb DESC NULLS LAST, dashboardid LIMIT 1;";
+                const db = await connection.query(sql, [found.id]);
+                var Token = await this.GetNewToken(found.id);
                 ret = {
                     "data":
                     {
                         "Token": Token,
                         "User":
                         {
-                            "ID": res.rows[0].id,
-                            "Username": res.rows[0].username,
-                            "Email": res.rows[0].email,
-                            "dashboardid": res.rows[0].dashboardid,
-                            "admin": res.rows[0].admin
+                            "ID": found.id,
+                            "Username": found.username,
+                            "Email": found.email,
+                            "dashboardid": db.rows.length > 0 ? db.rows[0].dashboardid : null,
+                            "admin": found.admin
                         }
                     }
                 };
@@ -682,6 +745,54 @@ class Postgres {
             connection?.release();
         }
         return ret;
+    }
+
+    // --- Password migration (tools/hash-passwords.ts) ---
+
+    // Computes password_hash for the users that have a plaintext password but no hash.
+    // The plaintext column is not changed. Returns the number of users updated.
+    public async HashMissingPasswords(): Promise<number> {
+        let count = 0;
+        var connection = await this.getConnection();
+        try {
+            const res = await connection.query(
+                "SELECT id, password FROM users WHERE (password_hash IS NULL OR password_hash = '') AND password <> '' ORDER BY id");
+            for (const row of res.rows) {
+                const hash = await hashPassword(row.password);
+                await connection.query("UPDATE users SET password_hash = $1 WHERE id = $2", [hash, row.id]);
+                count++;
+            }
+        }
+        finally {
+            connection.release();
+        }
+        return count;
+    }
+
+    // Empties the plaintext column of the users that have a hash. Returns the number of users updated.
+    public async ClearPlaintextPasswords(): Promise<number> {
+        var connection = await this.getConnection();
+        try {
+            const res = await connection.query(
+                "UPDATE users SET password = '' WHERE password <> '' AND password_hash LIKE 'scrypt$%'");
+            return res.rowCount ?? 0;
+        }
+        finally {
+            connection.release();
+        }
+    }
+
+    // Number of users that still cannot log in with a hash
+    public async CountUsersWithoutHash(): Promise<number> {
+        var connection = await this.getConnection();
+        try {
+            const res = await connection.query(
+                "SELECT COUNT(*) AS n FROM users WHERE password_hash IS NULL OR password_hash NOT LIKE 'scrypt$%'");
+            return parseInt(res.rows[0].n, 10);
+        }
+        finally {
+            connection.release();
+        }
     }
 
     private async GetNewToken(userID: number): Promise<any> {

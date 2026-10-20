@@ -42,8 +42,10 @@ console.info = (...args) => {
 
 console.log(AppConfig.envFile ? `Settings loaded from ${AppConfig.envFile}` : 'No .env file found: using environment variables only');
 console.log(`Database: ${AppConfig.db.user}@${AppConfig.db.host}:${AppConfig.db.port}/${AppConfig.db.database}`);
+console.log(`Plaintext password sync: ${AppConfig.passwordPlaintextSync ? 'ON (transition period)' : 'OFF'}`);
 
-var db = new Postgres(AppConfig.db.host, AppConfig.db.port, AppConfig.db.user, AppConfig.db.password, AppConfig.db.database);
+var db = new Postgres(AppConfig.db.host, AppConfig.db.port, AppConfig.db.user, AppConfig.db.password, AppConfig.db.database,
+  AppConfig.passwordPlaintextSync);
 
 const server: Server = new Server(app, AppConfig.port, db);
 if (server.listen()) {

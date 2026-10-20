@@ -45,6 +45,15 @@ function optionalInt(name: string, defaultValue: number): number {
     return n;
 }
 
+function optionalBool(name: string, defaultValue: boolean): boolean {
+    const value = process.env[name];
+    if (value === undefined || value === '') return defaultValue;
+    const v = value.trim().toLowerCase();
+    if (['1', 'true', 'yes', 'on'].includes(v)) return true;
+    if (['0', 'false', 'no', 'off'].includes(v)) return false;
+    throw new Error(`Setting ${name} must be true or false, found "${value}"`);
+}
+
 const envFile = loadEnvFile();
 
 export const AppConfig = {
@@ -57,4 +66,7 @@ export const AppConfig = {
         password: required('DB_PASSWORD'),
         database: required('DB_NAME'),
     },
+    // Transition period: also keep the legacy plaintext password column up to date,
+    // because an older server version still reads it. Set to false once every server is updated.
+    passwordPlaintextSync: optionalBool('PASSWORD_PLAINTEXT_SYNC', true),
 };

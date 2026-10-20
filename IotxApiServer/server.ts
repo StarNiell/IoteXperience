@@ -1,5 +1,5 @@
 import express from 'express';
-import { Postgres, AuthUser } from './postgres';
+import { Postgres, AuthUser, UserSaveResult } from './postgres';
 import { DeviceModel } from './deviceModel';
 import { UserDashboardModel } from './userDashboardModel';
 import { UserModel } from './userModel';
@@ -112,6 +112,13 @@ class Server {
     // Answers 200 if the operation succeeded, 500 otherwise
     private done(res: Response, ok: boolean) {
         res.sendStatus(ok ? 200 : 500);
+    }
+
+    // Answer for user creation / editing
+    private userSaved(res: Response, result: UserSaveResult) {
+        if (result === "ok") res.sendStatus(200);
+        else if (result === "duplicate") res.status(409).json({ "error": "Username or email already in use" });
+        else res.sendStatus(500);
     }
 
     // ----------------------------------------------------------------------
@@ -275,7 +282,7 @@ class Server {
             const user = this.object(this.params(req).userr, 'user') as UserModel;
             if (typeof user.username !== 'string' || user.username.trim() === '') throw new BadRequest('Invalid username');
             if (typeof user.password !== 'string' || user.password === '') throw new BadRequest('Password required');
-            this.done(res, await this.db.NewUser(user));
+            this.userSaved(res, await this.db.NewUser(user));
         });
 
         this.route('post', '/edituser', Access.Admin, async (req, res, current) => {
@@ -286,7 +293,8 @@ class Server {
             if (user.id === current.id && user.admin !== true) {
                 throw new BadRequest('You cannot remove your own administrator rights');
             }
-            this.done(res, await this.db.EditUser(user));
+            // Changing the password closes the user's other sessions (the caller's own session is kept)
+            this.userSaved(res, await this.db.EditUser(user, String(this.params(req).token ?? '')));
         });
 
         this.route('post', '/deleteuser', Access.Admin, async (req, res, current) => {
