@@ -4,6 +4,7 @@ import morgan from 'morgan';
 import bodyParser from 'body-parser';
 import { Server } from './server';
 import { Postgres } from './postgres';
+import { AppConfig } from './config';
 
 const app = express();
 app.use(cors());
@@ -36,9 +37,12 @@ console.info = (...args) => {
   originalConsole.info(`[${getTimestamp()}] [INF]`, ...args);
 };
 
-var db = new Postgres('192.168.1.107', 5432, 'postgres', 'Goldendrops2025', 'datawh')
+console.log(AppConfig.envFile ? `Settings loaded from ${AppConfig.envFile}` : 'No .env file found: using environment variables only');
+console.log(`Database: ${AppConfig.db.user}@${AppConfig.db.host}:${AppConfig.db.port}/${AppConfig.db.database}`);
 
-const server: Server = new Server(app, 3000, db);
+var db = new Postgres(AppConfig.db.host, AppConfig.db.port, AppConfig.db.user, AppConfig.db.password, AppConfig.db.database);
+
+const server: Server = new Server(app, AppConfig.port, db);
 if (server.listen()) {
     console.log('Server started');
 } 
