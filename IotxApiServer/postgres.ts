@@ -3,6 +3,12 @@ import { DashboardModel } from "./dashboardModel";
 import { UserDashboardModel } from "./userDashboardModel";
 import { UserModel } from "./userModel";
 import { StreamModel } from "./streamModel";
+import { Pool, PoolClient } from "pg";
+
+export interface AuthUser {
+    id: number;
+    admin: boolean;
+}
 
 class Postgres {
     private host: string;
@@ -10,6 +16,7 @@ class Postgres {
     private user: string;
     private password: string;
     private database: string;
+    private pool: Pool;
 
     constructor(host: string, port: number, user: string, password: string, database: string) {
         this.host = host;
@@ -17,43 +24,27 @@ class Postgres {
         this.user = user;
         this.password = password;
         this.database = database;
-    }
 
-    private getClient(): any {
-        const { Client } = require('pg');
-
-        // Database connection configuration
-        const dbConfig = {
+        // One shared connection pool instead of a new connection for every query.
+        this.pool = new Pool({
             user: this.user,
             password: this.password,
             host: this.host,
             port: this.port,
             database: this.database,
-        };
-        return new Client(dbConfig);
+            max: 10,
+            idleTimeoutMillis: 30000,
+            connectionTimeoutMillis: 10000,
+        });
+        // An idle client can fail (e.g. database restarted): log it instead of crashing the process.
+        this.pool.on('error', (err) => {
+            console.error('PostgreSQL idle client error:', err.message);
+        });
     }
 
-    private async getConnection(): Promise<any> {
-        var client = this.getClient();
-        await client.connect();
-        return client;
-    }
-
-    public async GetVocals(): Promise<any> {
-        var rows: any = [];
-        try {
-            var connection = await this.getConnection();
-            var res = await connection.query("SELECT * FROM KeyValues WHERE key = 'vocals'");
-            rows = res.rows;
-        }
-        catch (err) {
-            console.error(err);
-        }
-        finally {
-            connection.end();
-        }
-        console.log(rows);
-        return rows;
+    // Returns a client from the pool: it must be released with connection?.release()
+    private async getConnection(): Promise<PoolClient> {
+        return await this.pool.connect();
     }
 
     public async GetKeyValuesById(id): Promise<any> {
@@ -67,7 +58,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return rows;
     }
@@ -83,26 +74,9 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return rows;
-    }
-
-    public async SetKeyValues(key: string, value: string): Promise<boolean> {
-        var ret = false;
-        try {
-            var connection = await this.getConnection();
-            await connection.query("INSERT INTO KeyValues (key, value) VALUES ($1, $2)", [key, value]);
-            ret = true;
-        }
-        catch (err) {
-            console.error(err);
-            ret = false;
-        }
-        finally {
-            connection.end();
-        }
-        return ret;
     }
 
     public async AddDevice(device: DeviceModel): Promise<boolean> {
@@ -146,7 +120,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -168,7 +142,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -186,7 +160,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return rows;
     }
@@ -204,7 +178,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return rows;
     }
@@ -216,10 +190,10 @@ class Postgres {
             var connection = await this.getConnection();
             let sql: string = "";
             sql = "SELECT ";
-            sql += "	" + id.toString() + " as dashboard_id, ";
-            sql += "	(SELECT Name FROM dashboards WHERE id = " + id.toString() + ") as dashboard_name, ";
-            sql += "	COALESCE((SELECT id FROM dashboard_devices WHERE dashboardid = " + id.toString() + " AND deviceid = dev.id), 0) as dashboard_devices_id, ";
-            sql += "	COALESCE((SELECT Position FROM dashboard_devices WHERE dashboardid = " + id.toString() + " AND deviceid = dev.id), 999999) as dashboard_devices_position, ";
+            sql += "	$1::integer as dashboard_id, ";
+            sql += "	(SELECT Name FROM dashboards WHERE id = $1::integer) as dashboard_name, ";
+            sql += "	COALESCE((SELECT id FROM dashboard_devices WHERE dashboardid = $1::integer AND deviceid = dev.id), 0) as dashboard_devices_id, ";
+            sql += "	COALESCE((SELECT Position FROM dashboard_devices WHERE dashboardid = $1::integer AND deviceid = dev.id), 999999) as dashboard_devices_position, ";
             sql += "	dev.id as devid, ";
             sql += "	dev.device_id, ";
             sql += "	dev.device_title, ";
@@ -243,7 +217,7 @@ class Postgres {
             sql += "ORDER BY dashboard_devices_position; ";
             
             var res
-            if (res = await connection.query(sql)) {
+            if (res = await connection.query(sql, [id])) {
                 rows = res.rows;
                 rows.forEach((row) => {
                     if (result == null) {
@@ -280,10 +254,10 @@ class Postgres {
                 });
 
                 sql = "SELECT ";
-                sql += "	" + id.toString() + " as dashboard_id, ";
-                sql += "	(SELECT Name FROM dashboards WHERE id = " + id.toString() + ") as dashboard_name, ";
-                sql += "	COALESCE((SELECT id FROM dashboard_streams WHERE dashboardid = " + id.toString() + " AND streamid = str.id), 0) as dashboard_streams_id, ";
-                sql += "	COALESCE((SELECT Position FROM dashboard_streams WHERE dashboardid = " + id.toString() + " AND streamid = str.id), 999999) as dashboard_streams_position, ";
+                sql += "	$1::integer as dashboard_id, ";
+                sql += "	(SELECT Name FROM dashboards WHERE id = $1::integer) as dashboard_name, ";
+                sql += "	COALESCE((SELECT id FROM dashboard_streams WHERE dashboardid = $1::integer AND streamid = str.id), 0) as dashboard_streams_id, ";
+                sql += "	COALESCE((SELECT Position FROM dashboard_streams WHERE dashboardid = $1::integer AND streamid = str.id), 999999) as dashboard_streams_position, ";
                 sql += "	str.id as Strid, ";
                 sql += "	str.stream_id, ";
                 sql += "	str.stream_description, ";
@@ -293,7 +267,7 @@ class Postgres {
                 sql += "ORDER BY dashboard_streams_position; ";
 
                 var res
-                if (res = await connection.query(sql)) {
+                if (res = await connection.query(sql, [id])) {
                     rows = res.rows;
                     rows.forEach((row) => {
                         if (result == null) {
@@ -322,7 +296,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return result;
     }
@@ -360,7 +334,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return result;
     }
@@ -394,7 +368,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -423,7 +397,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -463,7 +437,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -494,7 +468,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -521,7 +495,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -532,14 +506,18 @@ class Postgres {
             var connection = await this.getConnection();
             var res
             if (res = await connection.query("SELECT * FROM Users ORDER BY username")) {
-                rows = res.rows;
+                // Passwords are never sent to the client
+                rows = res.rows.map((row) => {
+                    const { password, ...user } = row;
+                    return user;
+                });
             }
         }
         catch (err) {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return rows;
     }
@@ -569,7 +547,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -603,7 +581,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -621,13 +599,15 @@ class Postgres {
             }
 
             if (!ret) {
+                // The password is changed only when a new, non-empty one is given
+                const newPassword = (typeof user.password === "string" && user.password !== "") ? user.password : null;
                 let sql: string = "UPDATE users SET "
                 sql += "username = ($1), "
-                sql += "password = ($2), "
+                sql += "password = COALESCE($2, password), "
                 sql += "email = ($3), "
                 sql += "admin = ($4) "
                 sql += "WHERE id = ($5);"
-                await connection.query(sql, [user.username, user.password, user.email, user.admin, user.id]);
+                await connection.query(sql, [user.username, newPassword, user.email, user.admin, user.id]);
                 ret = true;
             }
 
@@ -637,7 +617,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -659,7 +639,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -699,7 +679,7 @@ class Postgres {
             ret = {};
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -727,27 +707,51 @@ class Postgres {
             token = [];
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return token;
     }
 
-    public async GetUserIDByToken(token: string): Promise<number> {
-        var ret = 0;
+    // Returns the user that owns a valid token (and extends its expiry), or null
+    public async GetUserByToken(token: string): Promise<AuthUser | null> {
+        var ret: AuthUser | null = null;
+        if (typeof token !== "string" || token === "") return null;
         try {
             var connection = await this.getConnection();
-            var res = await connection.query("SELECT UserID FROM Tokens WHERE token = $1 AND Expire > NOW()", [token]);
+            var res = await connection.query(
+                "SELECT t.userid, u.admin FROM Tokens t JOIN Users u ON u.id = t.userid WHERE t.token = $1 AND t.expire > NOW()",
+                [token]);
             if (res.rows.length > 0) {
-                ret = res.rows[0].userid;
+                ret = { id: res.rows[0].userid, admin: res.rows[0].admin === true };
                 await connection.query("UPDATE Tokens SET Expire = DEFAULT WHERE Token = $1", [token]);
             }
         }
         catch (err) {
             console.error(err);
-            ret = 0;
+            ret = null;
         }
         finally {
-            connection.end();
+            connection?.release();
+        }
+        return ret;
+    }
+
+    // True if the dashboard is assigned to the user
+    public async UserHasDashboard(userid: number, dashboardid: number): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+            var res = await connection.query(
+                "SELECT 1 FROM user_dashboards WHERE userid = $1 AND dashboardid = $2 LIMIT 1",
+                [userid, dashboardid]);
+            ret = res.rows.length > 0;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection?.release();
         }
         return ret;
     }
@@ -768,7 +772,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -779,23 +783,21 @@ class Postgres {
             var connection = await this.getConnection();
             let sql: string = "WITH Deleted AS ( ";
             sql += "    DELETE FROM dashboard_devices ";
-            sql += "    WHERE id = " + dashboard_device_id.toString() + " ";
+            sql += "    WHERE id = $2::integer ";
             sql += "    RETURNING Position ";
             sql += ") \n";
             sql += "UPDATE dashboard_devices ";
             sql += "SET Position = Position - 1 ";
             sql += "WHERE  ";
-            sql += "	dashboardid = " + dashboard_id.toString() + " ";
+            sql += "	dashboardid = $1::integer ";
             sql += "	AND Position > (SELECT Position FROM Deleted); ";
-            console.log(sql);
-            var res = await connection.query(sql);
-            console.log(res);
+            await connection.query(sql, [dashboard_id, dashboard_device_id]);
         }
         catch (err) {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -823,7 +825,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -841,7 +843,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return rows;
     }
@@ -862,7 +864,7 @@ class Postgres {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -873,23 +875,21 @@ class Postgres {
             var connection = await this.getConnection();
             let sql: string = "WITH Deleted AS ( ";
             sql += "    DELETE FROM dashboard_streams ";
-            sql += "    WHERE id = " + dashboard_stream_id.toString() + " ";
+            sql += "    WHERE id = $2::integer ";
             sql += "    RETURNING Position ";
             sql += ") \n";
             sql += "UPDATE dashboard_streams ";
             sql += "SET Position = Position - 1 ";
             sql += "WHERE  ";
-            sql += "	dashboardid = " + dashboard_id.toString() + " ";
+            sql += "	dashboardid = $1::integer ";
             sql += "	AND Position > (SELECT Position FROM Deleted); ";
-            console.log(sql);
-            var res = await connection.query(sql);
-            console.log(res);
+            await connection.query(sql, [dashboard_id, dashboard_stream_id]);
         }
         catch (err) {
             console.error(err);
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -911,7 +911,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -944,7 +944,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }
@@ -977,7 +977,7 @@ class Postgres {
             ret = false;
         }
         finally {
-            connection.end();
+            connection?.release();
         }
         return ret;
     }

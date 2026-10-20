@@ -8,7 +8,10 @@ import { AppConfig } from './config';
 
 const app = express();
 app.use(cors());
-app.use(morgan('tiny'));
+// Request log ('tiny' format) without tokens or passwords in the URL
+morgan.token('safe-url', (req: express.Request) =>
+  (req.originalUrl || req.url).replace(/([?&](token|password)=)[^&]*/gi, '$1***'));
+app.use(morgan(':method :safe-url :status :res[content-length] - :response-time ms'));
 app.use(bodyParser.json());
 
 // OVERRIDE CONSOLE LOG CON TIMESTAMP

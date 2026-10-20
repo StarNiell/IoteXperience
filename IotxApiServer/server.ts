@@ -1,10 +1,21 @@
 import express from 'express';
-import { Postgres } from './postgres';
+import { Postgres, AuthUser } from './postgres';
 import { DeviceModel } from './deviceModel';
-import { DashboardModel } from './dashboardModel';
 import { UserDashboardModel } from './userDashboardModel';
 import { UserModel } from './userModel';
 import { StreamModel } from './streamModel';
+
+type Request = express.Request;
+type Response = express.Response;
+
+// Access levels of a route
+enum Access {
+    User,   // any logged-in user
+    Admin,  // administrators only
+}
+
+// Thrown by the helpers below to answer 400 Bad Request
+class BadRequest extends Error { }
 
 class Server {
     private app: express.Application;
@@ -18,55 +29,103 @@ class Server {
     }
 
     public listen(): boolean {
-        let ret: boolean = false;
+        this.startRoutes();
+        console.log(`Routes started`);
         this.app.listen(this.port, () => {
             console.log(`Server running on port ${this.port}`);
-            this.startRoutes();
-            console.log(`Routes started`);
-            ret = true;
         });
-        return ret;
+        return true;
     }
+
+    // ----------------------------------------------------------------------
+    // Helpers
+    // ----------------------------------------------------------------------
+
+    // Parameters sent by the app: in the query string for GET, in body.params for POST
+    private params(req: Request): any {
+        if (req.method === 'GET') return req.query ?? {};
+        return req.body?.params ?? {};
+    }
+
+    // Positive integer id, or 400 Bad Request
+    private id(value: any, name: string): number {
+        const n = (typeof value === 'number') ? value
+            : (typeof value === 'string' && /^\d+$/.test(value)) ? parseInt(value, 10)
+                : NaN;
+        if (!Number.isInteger(n) || n <= 0) {
+            throw new BadRequest(`Invalid ${name}`);
+        }
+        return n;
+    }
+
+    // Object parameter, or 400 Bad Request
+    private object(value: any, name: string): any {
+        if (value === null || typeof value !== 'object' || Array.isArray(value)) {
+            throw new BadRequest(`Invalid ${name}`);
+        }
+        return value;
+    }
+
+    // Checks the token and the access level.
+    // Returns the user, or null after sending the answer:
+    //  - invalid or expired token: {"forbidden": ...} (the app logs the user out)
+    //  - not an administrator: 403
+    private async authorize(req: Request, res: Response, access: Access): Promise<AuthUser | null> {
+        const token = this.params(req).token;
+        const user = await this.db.GetUserByToken(token);
+        if (!user) {
+            res.json({ "forbidden": "Session expired or invalid token" });
+            return null;
+        }
+        if (access === Access.Admin && !user.admin) {
+            console.warn(`User ${user.id}: ${req.method} ${req.path} denied (administrator rights required)`);
+            res.status(403).json({ "error": "Administrator rights required" });
+            return null;
+        }
+        return user;
+    }
+
+    // Registers a route: checks authorization, catches errors, always answers
+    private route(method: 'get' | 'post', path: string, access: Access,
+        handler: (req: Request, res: Response, user: AuthUser) => Promise<void>) {
+        this.app[method](path, async (req: Request, res: Response) => {
+            try {
+                const user = await this.authorize(req, res, access);
+                if (!user) return;
+                await handler(req, res, user);
+            }
+            catch (error) {
+                this.fail(res, error, `${req.method} ${req.path}`);
+            }
+        });
+    }
+
+    private fail(res: Response, error: any, where: string) {
+        if (error instanceof BadRequest) {
+            if (!res.headersSent) res.status(400).json({ "error": error.message });
+            return;
+        }
+        console.error(`${where}: ${error?.message ?? error}`);
+        if (!res.headersSent) res.sendStatus(500);
+    }
+
+    // Answers 200 if the operation succeeded, 500 otherwise
+    private done(res: Response, ok: boolean) {
+        res.sendStatus(ok ? 200 : 500);
+    }
+
+    // ----------------------------------------------------------------------
+    // Routes
+    // ----------------------------------------------------------------------
 
     public startRoutes() {
 
-        this.app.get('/', async (req, res) => {
-            let result = await this.db.GetVocals();
-            res.json(result);
+        // Health check (no login, no database)
+        this.app.get('/', (req, res) => {
+            res.json({ "name": "IotxApiServer", "status": "ok" });
         });
 
-        // Test only
-        this.app.get('/test', (req, res) => {
-            res.json({ "key": 1, "name": "mannitidiriale", "value": 123 });
-        });
-
-        // Test only
-        this.app.get('/test2', (req, res) => {
-            res.json({ "key": 2, "name": "scartiloffista", "value": 899 });
-        });
-
-        // Test only
-        this.app.get('/params', async (req, res) => {
-            try {
-                console.log(req.query);
-                var token = req.query.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    var key = req.query.key;
-                    let result = await this.db.GetKeyValuesByKey(key);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
-        });
+        // --- Login ---
 
         this.app.post('/dologin', async (req, res) => {
             try {
@@ -80,535 +139,186 @@ class Server {
                     username = req.body?.username;
                     password = req.body?.password;
                 }
-                if (!username || !password) {
+                if (typeof username !== 'string' || typeof password !== 'string' || !username || !password) {
                     res.sendStatus(401);
+                    return;
                 }
                 let result = await this.db.DoLogin(username, password);
-                console.log(result);
                 if (Object.keys(result).length > 0) {
+                    console.log(`Login: user ${result.data?.User?.ID}`);
                     res.json(result);
                 }
                 else {
+                    console.warn(`Login failed for "${username}"`);
                     res.sendStatus(401);
-                    return
                 }
             }
             catch (error) {
-                console.log(error.message);
-                if (!res.headersSent)
-                    res.sendStatus(500);
-            }
-
-        });
-
-        this.app.post('/adddevice', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var device = req.body.params.device as DeviceModel;
-                let result = await this.db.AddDevice(device);
-                if (result) {
-                    console.log('Inserted');
-                    res.sendStatus(200);
-                }
+                this.fail(res, error, 'POST /dologin');
             }
         });
 
-        this.app.post('/remdevice', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var key = req.body.params.key;
-                var id = req.body.params.id as number;
-                let result = await this.db.RemDevice(id);
-                if (result) {
-                    console.log('Removed');
-                    res.sendStatus(200);
-                }
-            }
+        // --- Any logged-in user ---
+
+        this.route('get', '/params', Access.User, async (req, res) => {
+            const key = this.params(req).key;
+            res.json(await this.db.GetKeyValuesByKey(key));
         });
 
-        this.app.get('/getdevices', async (req, res) => {
-            try {
-                console.log(req.query);
-                var token = req.query.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    var key = req.query.key;
-                    let result = await this.db.GetDevices();
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('get', '/getdevices', Access.User, async (req, res) => {
+            res.json(await this.db.GetDevices());
         });
 
-        this.app.get('/getdashboards', async (req, res) => {
-            try {
-                console.log(req.query);
-                var token = req.query.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    var key = req.query.key;
-                    let result = await this.db.GetDashboards(UserID);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('get', '/getstreams', Access.User, async (req, res) => {
+            res.json(await this.db.GetStreams());
         });
 
-        this.app.post('/deletedashboard', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var key = req.body.params.key;
-                var id = req.body.params.id as number;
-                let result = await this.db.DeleteDashboard(id);
-                if (result) {
-                    console.log('Deleted');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('get', '/getdashboards', Access.User, async (req, res, user) => {
+            res.json(await this.db.GetDashboards(user.id));
         });
 
-        this.app.post('/newdashboard', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
+        // A dashboard: only if assigned to the user (administrators see all)
+        this.route('get', '/getdashboard', Access.User, async (req, res, user) => {
+            const id = this.id(this.params(req).id, 'id');
+            if (!user.admin && !(await this.db.UserHasDashboard(user.id, id))) {
+                console.warn(`User ${user.id}: dashboard ${id} denied (not assigned)`);
+                res.status(403).json({ "error": "Dashboard not assigned to this user" });
+                return;
             }
-            else {
-                var name = req.body.params.name as string;
-                let result = await this.db.NewDashboard(name);
-                if (result) {
-                    console.log('Inserted');
-                    res.sendStatus(200);
-                }
-            }
+            res.json(await this.db.GetDashboard(id));
         });
 
-        this.app.post('/editdashboard', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var id = req.body.params.id as number;
-                var name = req.body.params.name as string;
-                let result = await this.db.EditDashboard(id, name);
-                if (result) {
-                    console.log('Updated');
-                    res.sendStatus(200);
-                }
-            }
+        // --- Administrators: devices ---
+
+        this.route('post', '/adddevice', Access.Admin, async (req, res) => {
+            const device = this.object(this.params(req).device, 'device') as DeviceModel;
+            this.done(res, await this.db.AddDevice(device));
         });
 
-
-        this.app.get('/getdashboard', async (req, res) => {
-            try {
-                console.log(req.query);
-                var token = req.query.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    let id: number = parseInt(req.query.id as string, 10);
-                    let result = await this.db.GetDashboard(id);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('post', '/remdevice', Access.Admin, async (req, res) => {
+            const id = this.id(this.params(req).id, 'id');
+            this.done(res, await this.db.RemDevice(id));
         });
 
-        this.app.post('/adddashboarddevice', async (req, res) => {
-            try {
-                console.log(req.body.params);
-                var token = req.body.params.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    let id: number = parseInt(req.body.params.dashboardid as string, 10);
-                    let deviceid: number = parseInt(req.body.params.deviceid as string, 10);
-                    let result = await this.db.AddDashboardDevice(id, deviceid);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('post', '/savedevice', Access.Admin, async (req, res) => {
+            const device = this.object(this.params(req).device, 'device') as DeviceModel;
+            device.id = this.id(device.id, 'device id');
+            this.done(res, await this.db.SaveDevice(device));
         });
 
-        this.app.post('/remdashboarddevice', async (req, res) => {
-            try {
-                console.log(req.body.params);
-                var token = req.body.params.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    let dashboardid: number = parseInt(req.body.params.dashboardid as string, 10);
-                    let dashboarddeviceid: number = parseInt(req.body.params.dashboarddeviceid as string, 10);
-                    let result = await this.db.RemoveDashboardDevice(dashboardid, dashboarddeviceid);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        // --- Administrators: dashboards ---
+
+        this.route('post', '/newdashboard', Access.Admin, async (req, res) => {
+            const name = this.params(req).name;
+            if (typeof name !== 'string' || name.trim() === '') throw new BadRequest('Invalid name');
+            this.done(res, await this.db.NewDashboard(name));
         });
 
-        this.app.post('/adddashboardstream', async (req, res) => {
-            try {
-                console.log(req.body.params);
-                var token = req.body.params.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    let id: number = parseInt(req.body.params.dashboardid as string, 10);
-                    let streamid: number = parseInt(req.body.params.streamid as string, 10);
-                    let result = await this.db.AddDashboardStream(id, streamid);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('post', '/editdashboard', Access.Admin, async (req, res) => {
+            const p = this.params(req);
+            const id = this.id(p.id, 'id');
+            if (typeof p.name !== 'string' || p.name.trim() === '') throw new BadRequest('Invalid name');
+            this.done(res, await this.db.EditDashboard(id, p.name));
         });
 
-        this.app.post('/remdashboardstream', async (req, res) => {
-            try {
-                console.log(req.body.params);
-                var token = req.body.params.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    let dashboardid: number = parseInt(req.body.params.dashboardid as string, 10);
-                    let dashboardstreamid: number = parseInt(req.body.params.dashboardstreamid as string, 10);
-                    let result = await this.db.RemoveDashboardStream(dashboardid, dashboardstreamid);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('post', '/deletedashboard', Access.Admin, async (req, res) => {
+            const id = this.id(this.params(req).id, 'id');
+            this.done(res, await this.db.DeleteDashboard(id));
         });
 
-        this.app.post('/savedevice', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var device = req.body.params.device as DeviceModel;
-                let result = await this.db.SaveDevice(device);
-                if (result) {
-                    console.log('Updated');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('post', '/adddashboarddevice', Access.Admin, async (req, res) => {
+            const p = this.params(req);
+            const dashboardid = this.id(p.dashboardid, 'dashboardid');
+            const deviceid = this.id(p.deviceid, 'deviceid');
+            res.json(await this.db.AddDashboardDevice(dashboardid, deviceid));
         });
 
-        this.app.get('/getusersdashboard', async (req, res) => {
-            try {
-                console.log(req.query);
-                var token = req.query.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    let id: number = parseInt(req.query.id as string, 10);
-                    let result = await this.db.GetUsersDashboard(id);
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('post', '/remdashboarddevice', Access.Admin, async (req, res) => {
+            const p = this.params(req);
+            const dashboardid = this.id(p.dashboardid, 'dashboardid');
+            const dashboarddeviceid = this.id(p.dashboarddeviceid, 'dashboarddeviceid');
+            res.json(await this.db.RemoveDashboardDevice(dashboardid, dashboarddeviceid));
         });
 
-        this.app.post('/saveusersdashboard', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            } 
-            else {
-                var usersDashboard = req.body.params.users as UserDashboardModel[];
-                let result = await this.db.SaveUsersDashboard(usersDashboard);
-                if (result) {
-                    console.log('Updated');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('post', '/adddashboardstream', Access.Admin, async (req, res) => {
+            const p = this.params(req);
+            const dashboardid = this.id(p.dashboardid, 'dashboardid');
+            const streamid = this.id(p.streamid, 'streamid');
+            res.json(await this.db.AddDashboardStream(dashboardid, streamid));
         });
 
-        this.app.get('/getusers', async (req, res) => {
-            try {
-                console.log(req.query);
-                var token = req.query.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    var key = req.query.key;
-                    let result = await this.db.GetUsers();
-                    res.json(result);
-                }
-            }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+        this.route('post', '/remdashboardstream', Access.Admin, async (req, res) => {
+            const p = this.params(req);
+            const dashboardid = this.id(p.dashboardid, 'dashboardid');
+            const dashboardstreamid = this.id(p.dashboardstreamid, 'dashboardstreamid');
+            res.json(await this.db.RemoveDashboardStream(dashboardid, dashboardstreamid));
         });
 
-        this.app.post('/deleteuser', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var key = req.body.params.key;
-                var id = req.body.params.id as number;
-                let result = await this.db.DeleteUser(id);
-                if (result) {
-                    console.log('Deleted');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('get', '/getusersdashboard', Access.Admin, async (req, res) => {
+            const id = this.id(this.params(req).id, 'id');
+            res.json(await this.db.GetUsersDashboard(id));
         });
 
-        this.app.post('/newUser', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var user = req.body.params.userr as UserModel;
-                let result = await this.db.NewUser(user);
-                if (result) {
-                    console.log('Inserted');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('post', '/saveusersdashboard', Access.Admin, async (req, res) => {
+            const users = this.params(req).users;
+            if (!Array.isArray(users)) throw new BadRequest('Invalid users');
+            this.done(res, await this.db.SaveUsersDashboard(users as UserDashboardModel[]));
         });
 
-        this.app.post('/edituser', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var user = req.body.params.userr as UserModel;
-                let result = await this.db.EditUser(user);
-                if (result) {
-                    console.log('Updated');
-                    res.sendStatus(200);
-                }
-            }
+        // --- Administrators: users ---
+
+        this.route('get', '/getusers', Access.Admin, async (req, res) => {
+            res.json(await this.db.GetUsers());
         });
 
-        this.app.post('/resettoken', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var key = req.body.params.key;
-                var id = req.body.params.id as number;
-                let result = await this.db.ResetToken(id);
-                if (result) {
-                    console.log('Reset Token');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('post', '/newuser', Access.Admin, async (req, res) => {
+            const user = this.object(this.params(req).userr, 'user') as UserModel;
+            if (typeof user.username !== 'string' || user.username.trim() === '') throw new BadRequest('Invalid username');
+            if (typeof user.password !== 'string' || user.password === '') throw new BadRequest('Password required');
+            this.done(res, await this.db.NewUser(user));
         });
 
-        this.app.get('/getstreams', async (req, res) => {
-            try {
-                console.log(req.query);
-                var token = req.query.token as string;
-                var UserID = await this.db.GetUserIDByToken(token);
-                console.log(UserID);
-                if (UserID <= 0) {
-                    res.json({ "forbidden": "Session expired or invalid token" });
-                    return
-                }
-                else {
-                    var key = req.query.key;
-                    let result = await this.db.GetStreams();
-                    res.json(result);
-                }
+        this.route('post', '/edituser', Access.Admin, async (req, res, current) => {
+            const user = this.object(this.params(req).userr, 'user') as UserModel;
+            user.id = this.id(user.id, 'user id');
+            if (typeof user.username !== 'string' || user.username.trim() === '') throw new BadRequest('Invalid username');
+            // An administrator cannot remove their own administrator rights (avoids locking everyone out)
+            if (user.id === current.id && user.admin !== true) {
+                throw new BadRequest('You cannot remove your own administrator rights');
             }
-            catch (error) {
-                console.log(error?.message)
-                res.sendStatus(500);
-            }
+            this.done(res, await this.db.EditUser(user));
         });
 
-        this.app.post('/deletestream', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var key = req.body.params.key;
-                var id = req.body.params.id as number;
-                let result = await this.db.DeleteStream(id);
-                if (result) {
-                    console.log('Deleted');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('post', '/deleteuser', Access.Admin, async (req, res, current) => {
+            const id = this.id(this.params(req).id, 'id');
+            if (id === current.id) throw new BadRequest('You cannot delete your own user');
+            this.done(res, await this.db.DeleteUser(id));
         });
 
-        this.app.post('/newStream', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var stream = req.body.params.stream as StreamModel;
-                let result = await this.db.NewStream(stream);
-                if (result) {
-                    console.log('Inserted');
-                    res.sendStatus(200);
-                }
-            }
+        this.route('post', '/resettoken', Access.Admin, async (req, res) => {
+            const id = this.id(this.params(req).id, 'id');
+            this.done(res, await this.db.ResetToken(id));
         });
 
-        this.app.post('/editstream', async (req, res) => {
-            console.log(req.body.params);
-            var token = req.body.params.token as string;
-            var UserID = await this.db.GetUserIDByToken(token);
-            console.log(UserID);
-            if (UserID <= 0) {
-                res.json({ "forbidden": "Session expired or invalid token" });
-                return
-            }
-            else {
-                var stream = req.body.params.stream as StreamModel;
-                let result = await this.db.EditStream(stream);
-                if (result) {
-                    console.log('Updated');
-                    res.sendStatus(200);
-                }
-            }
+        // --- Administrators: streams ---
+
+        this.route('post', '/newstream', Access.Admin, async (req, res) => {
+            const stream = this.object(this.params(req).stream, 'stream') as StreamModel;
+            this.done(res, await this.db.NewStream(stream));
         });
 
-
-        // Test only
-        this.app.post('/insert', async (req, res) => {
-            var key = req.body.key;
-            var value = req.body.value;
-            let result = await this.db.SetKeyValues(key, value)
-            if (result) {
-                console.log('Inserted');
-                res.sendStatus(200);
-            }
+        this.route('post', '/editstream', Access.Admin, async (req, res) => {
+            const stream = this.object(this.params(req).stream, 'stream') as StreamModel;
+            stream.id = this.id(stream.id, 'stream id');
+            this.done(res, await this.db.EditStream(stream));
         });
+
+        this.route('post', '/deletestream', Access.Admin, async (req, res) => {
+            const id = this.id(this.params(req).id, 'id');
+            this.done(res, await this.db.DeleteStream(id));
+        });
+
+        // --- Anything else ---
 
         this.app.get('*', function (req, res) {
             res.sendStatus(404);
