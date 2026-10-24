@@ -3,8 +3,17 @@ import { DeviceModel } from "./models/deviceModel";
 import SwitchViewUI from "./UI/switchview";
 import SimpleCanvas from "./UI/simplecanvas";
 import ContactViewUI from "./UI/contactview";
+import { useMqtt } from "../mqtt";
+import { useTick } from "../../hooks/useTick";
+
+// How often the widgets re-check the age of their data
+const DATA_AGE_CHECK_INTERVAL = 15 * 1000;
 
 const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
+    // Widgets show a red header while the MQTT connection is down
+    const { status } = useMqtt();
+    const connected = status === "connected";
+    useTick(DATA_AGE_CHECK_INTERVAL);
     const [value, setValue] = useState(device.value);
     //const [offset, setOffset] = useState(device.offset);
     const [value2, setValue2] = useState(device.value2);
@@ -35,7 +44,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
     */
     let content;
 
-    let test = value + device.offset;
+    const test = value + device.offset;
 
     switch (device.type) {
         case "switch":
@@ -45,6 +54,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
                 device_id={device.device_id} 
                 value={value} button={false} 
                 timestamp={device.timestamp} 
+                connected={connected}
                 />;
             break;
 
@@ -55,6 +65,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
                 device_id={device.device_id} 
                 value={value}  
                 timestamp={device.timestamp} 
+                connected={connected}
                 button={true} 
                 />;
             break;
@@ -63,6 +74,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
             content = <SimpleCanvas 
                 value={test} 
                 timestamp={device.timestamp} 
+                connected={connected}
                 text={`${value2}${unit2 ? " " + unit2 : ""}`} 
                 caption={device.title !== "" ? device.title : "Sensor"} 
                 minVal={device.min} 
@@ -78,6 +90,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
                 caption={device.title !== "" ? device.title : "Contact"} 
                 value={value} 
                 timestamp={device.timestamp} 
+                connected={connected}
                 />;
             break;
 

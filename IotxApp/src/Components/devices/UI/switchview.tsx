@@ -10,8 +10,9 @@ const SwitchViewUI: React.FC<{subscription: string,
                                 value: number; 
                                 timestamp: string;
                                 caption: string; 
-                                button: boolean }
-                            > = ({subscription, device_id, value, timestamp, caption, button }) => {
+                                button: boolean;
+                                connected: boolean }
+                            > = ({subscription, device_id, value, timestamp, caption, button, connected }) => {
     const { publishMessage } = useMqtt();
 
     let switchState: string = ""
@@ -20,22 +21,15 @@ const SwitchViewUI: React.FC<{subscription: string,
     else
         switchState = "switch-off";
 
-    const valueTime = TimeUtil.parseIsoDate(timestamp);
-    let unvaluedTimeStamp: boolean = (timestamp === "0000-00-00T00:00:00Z")
-    let expired: boolean = valueTime ? ((new Date().getTime() - valueTime.getTime()) > (2 * 60 * 1000)) : true; // Expired if older than 10 minutes or invalid date
+    // Red header when MQTT is disconnected or the value is older than 2 minutes
+    const maxAge = 2 * 60 * 1000;
+    const expired = TimeUtil.isExpired(timestamp, maxAge);
+    const bgClassName = TimeUtil.deviceHeaderClass(timestamp, maxAge, connected);
 
-    let bgClassName: string = "bg-lightgray";
-    if (unvaluedTimeStamp) {
-        bgClassName = "bg-warning";
-        }
-    else if (expired) {
-        bgClassName = "bg-danger";
-    }
-    
     let currentValue: number = value;
 
     const handlePublish = () => {
-        if (!expired)
+        if (connected && !expired)
         {
             currentValue = currentValue === 1 ? 0 : 1;
             publishMessage(subscription, '{"device_id": "' + device_id + '", "value": ' + currentValue + '}')

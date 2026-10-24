@@ -27,3 +27,5 @@ dist-ssr
 public/config.json
 src/config/config.json
 src/config/config.prod.json
+# config.json belongs in public/ (development) or dist/ (production), never here
+/config.json

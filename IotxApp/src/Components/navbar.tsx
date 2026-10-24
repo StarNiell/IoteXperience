@@ -1,14 +1,26 @@
 import { useRef } from "react";
 import { NavLink } from 'react-router-dom';
 import { useAuth } from '../Auth/auth';
+import { useMqtt, MqttStatus } from './mqtt';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faUser, faArrowRightToBracket, faHome, faTableColumns, faTableList, faVideo, faGauge, faDoorOpen, faUsers } from '@fortawesome/free-solid-svg-icons';
 import iotxLogo from '/iotx_blue.svg';
 import "bootstrap/dist/css/bootstrap.min.css";
 import "bootstrap/dist/js/bootstrap.bundle.min";
 
+// Colour and description of the MQTT connection indicator
+const mqttStatusInfo: Record<MqttStatus, { className: string; label: string }> = {
+    offline: { className: "bg-danger", label: "No network" },
+    connected: { className: "bg-success", label: "Connected to the devices (MQTT)" },
+    connecting: { className: "bg-warning", label: "Connecting to the devices (MQTT), please wait..." },
+    disconnected: { className: "bg-danger", label: "Not connected to the devices (MQTT)" },
+};
+
 function Navbar() {
     const { auth, user, dashboards } = useAuth();
+    const { status: mqttStatus } = useMqtt();
+    // The indicator is shown only with a real session (MQTT is used only after login)
+    const sessionToken = user?.data?.Token;
     const navButton = useRef<HTMLButtonElement>(null);
     const linksContainerRef = useRef<HTMLDivElement>(null);
 
@@ -34,6 +46,14 @@ function Navbar() {
                 <nav className="navbar navbar-expand-lg navbar-dark bg-dark w-100">
                     <div className="container-fluid">
                         <NavLink to="/" className="navbar-brand"><img src={iotxLogo} alt="iotx logo" height={'40px'} /></NavLink>
+                        {sessionToken && (
+                            <span
+                                className={`mqtt-status-dot ${mqttStatusInfo[mqttStatus].className} me-auto`}
+                                title={mqttStatusInfo[mqttStatus].label}
+                                aria-label={mqttStatusInfo[mqttStatus].label}
+                                role="status"
+                            />
+                        )}
                         <button ref={navButton} className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
                             <span className="navbar-toggler-icon"></span>
                         </button>

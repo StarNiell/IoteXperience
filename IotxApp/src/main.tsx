@@ -39,8 +39,6 @@ import { loadConfig } from "./config/config.ts";
     originalConsole.info(`[${getTimestamp()}] [INF]`, ...args);
   };
 
-  localStorage.setItem("mqtt-connected-status", "disconnected");
-  
   const clientId = generateGUID();
   localStorage.setItem("client-id", clientId);
   console.log("IotX client-id: " + clientId);

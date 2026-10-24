@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { useAuth } from './Auth/auth.tsx';
 import Navbar from './Components/navbar.tsx';
@@ -14,36 +13,13 @@ import DashboardStreams from './Pages/dashboardstreams.tsx';
 import Dashboard from './Pages/dashboard.tsx';
 import Users from './Pages/users.tsx';
 import Streams from './Pages/streams.tsx';
-import { usePageActive } from "./hooks/usePageActive";
-import { useMqtt } from './Components/mqtt.tsx';
 
 
+// The MQTT connection is managed by MqttProvider (Components/mqtt.tsx):
+// it follows the login state and the page visibility by itself.
 function App() {
 
-  //const { auth } = useAuth();
-  const { auth, user } = useAuth();
-  const isPageActive = usePageActive();
-  const {checkMqttConnection, endMqttConnection, closeMqttSession } = useMqtt();
-  const sessionToken = user?.data?.Token;
-
-  //const rand = Math.floor(Math.random() * 100);
-
-  
-  // MQTT only for logged-in users: the broker credentials come from the API after login
-  useEffect(() => {
-      if (!sessionToken) {
-          closeMqttSession();
-          return;
-      }
-      if (isPageActive) {
-          console.log("Page activate: check mqtt connection");
-          checkMqttConnection(sessionToken);
-      }
-      else {
-          console.log("Page not active, end mqtt connection");
-          endMqttConnection();
-      }
-  }, [isPageActive, sessionToken]);
+  const { auth } = useAuth();
 
   return (
     <BrowserRouter>

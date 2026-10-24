@@ -1,50 +1,45 @@
-# React + TypeScript + Vite
+# IotxApp
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Web client of the IOTeXperience home-automation system (React 18 + Vite + react-bootstrap).
+It talks to:
 
-Currently, two official plugins are available:
+- **IotxApiServer** (HTTP): login, dashboards, devices, streams, MQTT credentials;
+- the **MQTT broker** (WebSocket): device values (`iotx/out/#`) and commands (`iotx/in`);
+- **IotxVideoProxyServer** (HTTP): camera streams.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Configuration
 
-## Expanding the ESLint configuration
+The addresses are **not** compiled into the bundle: the app reads `config.json` at startup,
+from the same folder as `index.html`. The file is not in git; `config.example.json` (in this
+folder) is the template.
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+| Where | File to create | Notes |
+|---|---|---|
+| Development (`npm run dev`) | `public/config.json` | Vite serves the files of `public/` |
+| Production (`npm run build` + `npm run preview`) | `dist/config.json` | keep it when `dist/` is replaced (e.g. `rsync --exclude config.json`) |
 
-- Configure the top-level `parserOptions` property like this:
-
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```json
+{
+  "wsDatabaseUrl": "http://your-server.example.com:5722",
+  "mqttServer": "ws://your-server.example.com:5723",
+  "mqttClientId": "iotxClient01",
+  "streamProxyUrl": "http://your-server.example.com:3002"
+}
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+- `wsDatabaseUrl`: IotxApiServer address.
+- `mqttServer`: MQTT broker, WebSocket listener (`ws://` or `wss://`).
+- `mqttClientId`: prefix of the MQTT client id (a random suffix is added per browser tab).
+- `streamProxyUrl`: IotxVideoProxyServer address.
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
+The file must contain only public addresses: the browser receives it as it is. The MQTT
+username and password are given by IotxApiServer after login.
 
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
-```
+A change to `config.json` needs no rebuild: reload the page.
+
+## Scripts
+
+- `npm run dev` — development server (Vite, reachable on the local network)
+- `npm run build` — type check and production build in `dist/`
+- `npm run preview` — serves `dist/` (used in production)
+- `npm run lint` — ESLint

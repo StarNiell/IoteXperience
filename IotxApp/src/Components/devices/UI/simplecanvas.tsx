@@ -11,16 +11,15 @@ interface SimpleCanvasProps {
     rangeValues: number[];
     rangeColors: string[];
     unit: string;
+    connected: boolean;
 }
 
 class SimpleCanvas extends React.Component<SimpleCanvasProps> {
     canvas: RefObject<HTMLCanvasElement>;
-    bgClassName: string;
 
     constructor(props: SimpleCanvasProps) {
         super(props);
         this.canvas = React.createRef();
-        this.bgClassName = "";
     }
 
     componentDidMount() {
@@ -41,18 +40,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
         const arcRange: number = (maxPosition - minPosition);
 
         let tempCanvas: number = this.props.value;
-        let MaxValCanvas: number = this.props.maxVal - 1;
-        const valueTime = TimeUtil.parseIsoDate(this.props.timestamp);
-        let unvaluedTimeStamp: boolean = (this.props.timestamp === "0000-00-00T00:00:00Z")
-        let expired: boolean = valueTime ? ((new Date().getTime() - valueTime.getTime()) > (5 * 60 * 1000)) : true; // Expired if older than 10 minutes or invalid date
-
-        this.bgClassName = "bg-lightgray";
-        if (unvaluedTimeStamp) {
-            this.bgClassName = "bg-warning";
-            }
-        else if (expired) {
-            this.bgClassName = "bg-danger";
-        }
+        const MaxValCanvas: number = this.props.maxVal - 1;
 
         if (this.props.value > MaxValCanvas)
         {
@@ -63,7 +51,7 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
             tempCanvas = this.props.minVal;
         }   
 
-        let unit: string = this.props.unit ?? "°F";
+        const unit: string = this.props.unit ?? "°F";
 
         const actualPosition: number = minPosition + (arcRange * (tempCanvas + 1) / this.props.maxVal);
 
@@ -78,8 +66,8 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
             index++;
         });
 
-        let sensorValue: number = this.props.value;
-        let text: string = this.props.text?.toString() || "";
+        const sensorValue: number = this.props.value;
+        const text: string = this.props.text?.toString() || "";
 
         if (canvas) {
             const ctx = canvas.getContext("2d");
@@ -109,14 +97,14 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font="30px 'BR Cobane'";
-                let textToWrite = Number(sensorValue).toFixed(1) + unit;
-                let textWidth = ctx.measureText(textToWrite).width / 2;
+                const textToWrite = Number(sensorValue).toFixed(1) + unit;
+                const textWidth = ctx.measureText(textToWrite).width / 2;
                 ctx.fillText(textToWrite, width - textWidth, height - 24);
 
                 ctx.fillStyle = '#FFFFFF';
                 ctx.font="18px 'BR Cobane'";
-                let text2ToWrite = text;
-                let text2Width = ctx.measureText(text2ToWrite).width / 2;
+                const text2ToWrite = text;
+                const text2Width = ctx.measureText(text2ToWrite).width / 2;
                 ctx.fillText(text2ToWrite, width - text2Width, height - 2);
 
 
@@ -127,9 +115,12 @@ class SimpleCanvas extends React.Component<SimpleCanvasProps> {
 
 
     render() {
+        // Red header when MQTT is disconnected or the value is older than 5 minutes
+        // (computed here, not in drawCanvass: that runs after the render)
+        const bgClassName = TimeUtil.deviceHeaderClass(this.props.timestamp, 5 * 60 * 1000, this.props.connected);
         return (
             <div className="bg-dark rounded p-1" style={{ minHeight: '205px' }} >
-                <center><div style={{ minHeight: "25px" }} className={`${this.bgClassName} rounded m-1 text-dark`} >{this.props.caption}</div></center>
+                <center><div style={{ minHeight: "25px" }} className={`${bgClassName} rounded m-1 text-dark`} >{this.props.caption}</div></center>
                 <div className="device-ui" style={{ height: "147px" }}>
                     <canvas ref={this.canvas}  />
                 </div>
