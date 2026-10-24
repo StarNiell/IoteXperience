@@ -2,3 +2,5 @@ dist/
 .vscode/
 node_modules/
 logs/
+.env
+config.js

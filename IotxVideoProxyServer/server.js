@@ -1,8 +1,9 @@
 const express = require('express');
 const cors = require('cors');
 const ProxyStream = require('./proxyManager');
+const axios = require('axios');
 const CryptoUtil = require('./cryptoutil');
-const config = require('./config');
+const settings = require('./settings');
 
 // OVERRIDE CONSOLE LOG CON TIMESTAMP
 const originalConsole = {
@@ -56,7 +57,7 @@ http.globalAgent = noKeepAliveAgent;
 https.globalAgent = noKeepAliveAgentHttps;
 
 const app = express();
-const port = 3002;
+const port = settings.port;
 
 // Middleware
 app.use(express.json({
@@ -72,7 +73,7 @@ app.use(cors({
 
 // Variabili globali
 let deviceMap = {};
-let deviceFixed = config.fixedStreams || {};
+let deviceFixed = settings.fixedStreams;
 const proxies = new Map();
 let memoryStats = {
   peak: 0,
@@ -203,6 +204,83 @@ function memoryCleanup() {
   }
 }
 
+// ACCESS CONTROL
+
+// Trusted clients (IotxStreamWriter) and management endpoints: key TRUSTED_KEY.
+// Header X-Iotx-Trusted-Key; the management endpoints also accept ?key=... (to open them in a browser).
+function hasTrustedKey(req, allowQuery) {
+  const given = req.get('X-Iotx-Trusted-Key') || (allowQuery ? req.query.key : undefined);
+  return CryptoUtil.keyEquals(given, settings.trustedKey);
+}
+
+function requireTrustedKey(req, res, next) {
+  if (!settings.trustedKey) {
+    return res.status(403).json({ error: 'Management endpoints disabled (TRUSTED_KEY not set)' });
+  }
+  if (!hasTrustedKey(req, true)) {
+    console.warn(`${req.method} ${req.path} denied (invalid key) from ${req.ip}`);
+    return res.status(403).json({ error: 'Invalid key' });
+  }
+  next();
+}
+
+// STREAM LIST
+// Read from IotxApiServer (GET /proxy/streams) at startup, every STREAM_REFRESH_SECONDS
+// and when an unknown stream is requested. Fixed streams (config.js) are always added.
+
+let lastRefresh = 0;
+let refreshing = null;
+
+function applyStreamList(apiStreams) {
+  const newMap = { ...apiStreams, ...deviceFixed };
+
+  // Stop the proxies of streams removed or whose URL changed
+  for (const [id, streamInfo] of proxies.entries()) {
+    if (newMap[id] !== deviceMap[id]) {
+      console.log(newMap[id] ? `Stream URL changed, restarting proxy: ${id}` : `Removing unconfigured proxy: ${id}`);
+      safelyDestroyProxy(id, streamInfo.proxy);
+      proxies.delete(id);
+      memoryStats.cleanups++;
+    }
+  }
+
+  const before = Object.keys(deviceMap).sort().join(',');
+  deviceMap = newMap;
+  const after = Object.keys(deviceMap).sort().join(',');
+  if (before !== after) {
+    console.log(`Stream list updated: ${after || '(empty)'}`);
+  }
+}
+
+async function refreshStreams() {
+  if (!settings.apiUrl || !settings.proxyServiceKey) return false;
+  if (refreshing) return refreshing;    // one request at a time
+
+  refreshing = (async () => {
+    try {
+      const response = await axios.get(`${settings.apiUrl}/proxy/streams`, {
+        headers: { 'X-Iotx-Service-Key': settings.proxyServiceKey },
+        timeout: 5000,
+      });
+      const streams = response.data && response.data.streams;
+      if (!streams || typeof streams !== 'object') throw new Error('invalid response');
+      applyStreamList(streams);
+      lastRefresh = Date.now();
+      return true;
+    }
+    catch (error) {
+      // Keep the current list if the API is not reachable
+      const status = error.response ? ` (HTTP ${error.response.status})` : '';
+      console.error(`Stream list not updated from ${settings.apiUrl}: ${error.message}${status}`);
+      return false;
+    }
+    finally {
+      refreshing = null;
+    }
+  })();
+  return refreshing;
+}
+
 //ENDPOINTS
 
 // Endpoint base
@@ -220,42 +298,19 @@ app.get('/', (req, res) => {
 });
 
 // Elenco stream disponibili
-app.get('/streams', (req, res) => {
+app.get('/streams', requireTrustedKey, (req, res) => {
   res.send(`<h2>Stream disponibili:</h2>
     <ul>${Object.keys(deviceMap).map(id => `<li>${id}</li>`).join('')}</ul>`);
 });
 
-// Configurazione device
+// Stream list configuration from the browser: removed.
+// The proxy now reads the stream list from IotxApiServer.
 app.post('/config', (req, res) => {
-  const tokenValid = req.body.tokenValid;
-  if (!CryptoUtil.isTokenValid(tokenValid)) {
-    console.error('Token not valid for configuration:', tokenValid);
-    return res.status(403).json({ error: 'Token not valid' });
-  }
-
-  const configMap = req.body.streams || {};
-  deviceMap = { ...configMap, ...deviceFixed };
-
-  if (Object.keys(configMap).length === 0) {
-    aggressiveModuleCleanup();
-  }
-
-  for (const [id, streamInfo] of proxies.entries()) {
-    if (!deviceMap[id]) {
-      console.log(`Removing unconfigured proxy: ${id}`);
-      safelyDestroyProxy(id, streamInfo.proxy);
-      proxies.delete(id);
-      memoryStats.cleanups++;
-    }
-  }
-
-  console.log('/config: Stream list refreshed');
-  //console.log('Lista Streams aggiornata da chiamata /config:', deviceMap);
-  res.json({ success: true, devices: Object.keys(deviceMap) });
+  res.status(410).json({ error: 'Removed: the stream list is read from IotxApiServer' });
 });
 
 // Stream video
-app.get('/stream/:id', (req, res) => {
+app.get('/stream/:id', async (req, res) => {
   const memBefore = process.memoryUsage().heapUsed;
   let isOpen = true;
   
@@ -264,21 +319,32 @@ app.get('/stream/:id', (req, res) => {
 
   const { id } = req.params;
   const token = req.query.token;
-  const trusted = req.query.trusted;
 
-  if (!token && !trusted) {
-    return res.status(401).send("Token mancante");
+  // Access: a token issued by IotxApiServer for this stream, or the trusted key (header only)
+  let client;
+  if (hasTrustedKey(req, false)) {
+    client = 'trusted client';
   }
-  if (token && !CryptoUtil.isTokenValid(token)) {
-    return res.status(403).send("Token non valido");
+  else if (token) {
+    const userId = CryptoUtil.verifyStreamToken(settings.streamTokenSecret, id, token);
+    if (userId === null) {
+      console.warn(`Stream ${id}: invalid or expired token from ${req.ip}`);
+      return res.status(403).send("Invalid or expired token");
+    }
+    client = `user ${userId}`;
   }
-  if (trusted && trusted !== 'IotxTrusted') {
-    return res.status(403).send("Trusted non valido");
+  else {
+    return res.status(401).send("Missing token");
   }
 
+  // Unknown stream: it may have just been added, read the list again (at most every 10 s)
+  if (!deviceMap[id] && Date.now() - lastRefresh > 10000) {
+    await refreshStreams();
+  }
   if (!deviceMap[id]) {
-    return res.status(404).send("Stream non trovato");
+    return res.status(404).send("Stream not found");
   }
+  console.log(`Stream ${id} requested by ${client} - id: ${resId}`);
 
   try {
     if (!proxies.has(id)) {
@@ -324,7 +390,7 @@ app.get('/stream/:id', (req, res) => {
 
 
 // Gestione stream
-app.post('/stream/:id/close', (req, res) => {
+app.post('/stream/:id/close', requireTrustedKey, (req, res) => {
   const { id } = req.params;
   const streamInfo = proxies.get(id);
   
@@ -342,7 +408,7 @@ app.post('/stream/:id/close', (req, res) => {
   res.status(404).json({ error: 'Stream not found' });
 });
 
-app.post('/stream/:id/restart', (req, res) => {
+app.post('/stream/:id/restart', requireTrustedKey, (req, res) => {
   const { id } = req.params;
   const streamInfo = proxies.get(id);
   
@@ -374,7 +440,7 @@ app.post('/stream/:id/restart', (req, res) => {
 });
 
 // Statistiche
-app.get('/streamstats', (req, res) => {
+app.get('/streamstats', requireTrustedKey, (req, res) => {
   const stats = {
     streams: {},
     memory: {
@@ -410,7 +476,7 @@ app.get('/streamstats', (req, res) => {
 });
 
 // Memory management
-app.get('/memory/deep', (req, res) => {
+app.get('/memory/deep', requireTrustedKey, (req, res) => {
   const mem = process.memoryUsage();
   const stats = {
     memory: {
@@ -431,7 +497,7 @@ app.get('/memory/deep', (req, res) => {
   res.json(stats);
 });
 
-app.post('/memory/cleanup', (req, res) => {
+app.post('/memory/cleanup', requireTrustedKey, (req, res) => {
   console.log('Called memory cleanup...');
   memoryCleanup();
   memoryStats.cleanups++;
@@ -439,11 +505,10 @@ app.post('/memory/cleanup', (req, res) => {
 });
 
 // Endpoint di debug
-app.get('/endpoints', (req, res) => {
+app.get('/endpoints', requireTrustedKey, (req, res) => {
   const endpoints = [
     'GET  /                 - Main page',
     'GET  /streams          - Stream available list',
-    'POST /config           - Refresh streams list',
     'GET  /stream/:id       - Stream video',
     'POST /stream/:id/close - Close stream specified', 
     'POST /stream/:id/restart - Restart stream specified',
@@ -465,8 +530,18 @@ app.listen(port, () => {
   console.log(`*****************************************************************`);
   console.success(`Video proxy server started on http://localhost:${port}`);
   console.info(`Memory guard activated`);
+  console.log(settings.envFile ? `Settings loaded from ${settings.envFile}` : 'No .env file found: using environment variables only');
+  console.log(settings.configFile ? `Fixed streams from ${settings.configFile}: ${Object.keys(deviceFixed).join(', ') || '(none)'}` : 'No config.js: no fixed streams');
+  console.log(`Stream tokens: ${settings.streamTokenSecret ? 'enabled' : 'DISABLED (STREAM_TOKEN_SECRET not set): only trusted clients'}`);
+  console.log(`Trusted key: ${settings.trustedKey ? 'enabled' : 'disabled (TRUSTED_KEY not set): no trusted clients, management endpoints disabled'}`);
   deviceMap = { ...deviceFixed };
-  console.log('Fixed Streams List:', deviceMap);
+  if (settings.apiUrl && settings.proxyServiceKey) {
+    console.log(`Stream list from ${settings.apiUrl}, refreshed every ${settings.streamRefreshSeconds} s`);
+    refreshStreams();
+    setInterval(refreshStreams, settings.streamRefreshSeconds * 1000);
+  } else {
+    console.warn('API_URL or PROXY_SERVICE_KEY not set: only fixed streams are available');
+  }
   //startOptimizedCleanup(); non serve all'avvio
 });
 

@@ -1,5 +1,5 @@
 {
-  "cameraUrl": "http://192.168.1.107:3002/stream/Parcheggio?trusted=IotxTrusted",
+  "cameraUrl": "http://192.168.1.107:3002/stream/Parcheggio",
   "outputDir": "./recordings",
   "segmentTime": 600,
   "fontSize": 24,
