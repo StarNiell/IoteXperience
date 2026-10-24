@@ -8,13 +8,14 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
     const [streamProxyUrl, setStreamProxyUrl] = useState<string>("");
     const [streamError, setStreamError] = useState<string>("");
     const [loaded, setLoaded] = useState(false);
-    const isActive = usePageActive();
+    const { visible, wakeup } = usePageActive();
 
-    // When the page becomes active: ask the API for a new stream token, then (re)open the stream.
+    // When the page becomes visible again (or wakes up, or the network comes back):
+    // ask the API for a new stream token, then (re)open the stream.
     // The token is checked only when the connection is opened: a stream already playing is not
     // interrupted when it expires.
     useEffect(() => {
-        if (!isActive) return;
+        if (!visible) return;
         const sessionToken = user?.data?.Token;
         if (!sessionToken) return;
 
@@ -32,7 +33,7 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
             }
         });
         return () => { cancelled = true; };
-    }, [isActive, stream_id, user?.data?.Token]);
+    }, [visible, wakeup, stream_id, user?.data?.Token]);
 
     return (
         <div className="bg-dark rounded p-1" style={{ minHeight: '205px' }}>
