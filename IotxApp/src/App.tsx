@@ -21,23 +21,29 @@ import { useMqtt } from './Components/mqtt.tsx';
 function App() {
 
   //const { auth } = useAuth();
-  const { auth } = useAuth();
+  const { auth, user } = useAuth();
   const isPageActive = usePageActive();
-  const {checkMqttConnection, endMqttConnection } = useMqtt();
+  const {checkMqttConnection, endMqttConnection, closeMqttSession } = useMqtt();
+  const sessionToken = user?.data?.Token;
 
   //const rand = Math.floor(Math.random() * 100);
 
   
+  // MQTT only for logged-in users: the broker credentials come from the API after login
   useEffect(() => {
+      if (!sessionToken) {
+          closeMqttSession();
+          return;
+      }
       if (isPageActive) {
           console.log("Page activate: check mqtt connection");
-          checkMqttConnection();
+          checkMqttConnection(sessionToken);
       }
       else {
           console.log("Page not active, end mqtt connection");
           endMqttConnection();
       }
-  }, [isPageActive]);
+  }, [isPageActive, sessionToken]);
 
   return (
     <BrowserRouter>

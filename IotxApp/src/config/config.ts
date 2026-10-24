@@ -4,8 +4,6 @@ interface Config {
   wsDatabaseUrl: string;
   mqttServer: string;
   mqttClientId: string;
-  mqttUsername: string;
-  mqttPassword: string;
   streamProxyUrl: string;
 }
 

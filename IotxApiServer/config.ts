@@ -82,4 +82,9 @@ export const AppConfig = {
         // Key the video proxy uses to read the stream list (header X-Iotx-Service-Key)
         proxyServiceKey: optionalString('PROXY_SERVICE_KEY'),
     },
+    // MQTT account used by IotxApp, given to the app only after login (never in the app bundle)
+    mqtt: {
+        appUsername: optionalString('MQTT_APP_USERNAME'),
+        appPassword: optionalString('MQTT_APP_PASSWORD'),
+    },
 };

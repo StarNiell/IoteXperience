@@ -222,6 +222,16 @@ class Server {
             res.json({ "stream": streamId, "token": t.token, "expires": t.expires.toISOString() });
         });
 
+        // MQTT account of IotxApp: the app connects to the broker only after login
+        this.route('get', '/getmqttcredentials', Access.User, async (req, res) => {
+            const mqtt = AppConfig.mqtt;
+            if (!mqtt.appUsername) {
+                res.status(503).json({ "error": "MQTT account not configured (MQTT_APP_USERNAME)" });
+                return;
+            }
+            res.json({ "username": mqtt.appUsername, "password": mqtt.appPassword });
+        });
+
         // --- Video proxy (service key, no user session) ---
 
         // Stream list read by IotxVideoProxyServer: { "streams": { "<stream_id>": "<stream_url>" } }

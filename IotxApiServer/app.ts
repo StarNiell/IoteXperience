@@ -45,6 +45,7 @@ console.log(`Database: ${AppConfig.db.user}@${AppConfig.db.host}:${AppConfig.db.
 console.log(`Plaintext password sync: ${AppConfig.passwordPlaintextSync ? 'ON (transition period)' : 'OFF'}`);
 console.log(`Stream tokens: ${AppConfig.streams.tokenSecret ? `enabled, valid ${AppConfig.streams.tokenTtlHours} h` : 'DISABLED (STREAM_TOKEN_SECRET not set)'}`);
 console.log(`Video proxy access: ${AppConfig.streams.proxyServiceKey ? 'enabled' : 'DISABLED (PROXY_SERVICE_KEY not set)'}`);
+console.log(`MQTT account for the app: ${AppConfig.mqtt.appUsername ? AppConfig.mqtt.appUsername : 'DISABLED (MQTT_APP_USERNAME not set)'}`);
 
 var db = new Postgres(AppConfig.db.host, AppConfig.db.port, AppConfig.db.user, AppConfig.db.password, AppConfig.db.database,
   AppConfig.passwordPlaintextSync);

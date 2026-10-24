@@ -1,7 +1,9 @@
-import React, { createContext, useContext, useState, useCallback } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
 import mqtt from "mqtt";
 import { DeviceModel } from './devices/models/deviceModel';
 import config from '../config/config';
+import ApiCalls from './apicalls';
+import { useAuth } from '../Auth/auth';
 
 const MqttContext = createContext<{
   mqttClient: mqtt.MqttClient | null;
@@ -9,8 +11,9 @@ const MqttContext = createContext<{
   deviceList: DeviceModel[] | [];
   setDeviceList: React.Dispatch<React.SetStateAction<DeviceModel[] | []>>;
   publishMessage: (topic: string, message: string) => Promise<void>;
-  checkMqttConnection: () => Promise<void>;
+  checkMqttConnection: (sessionToken?: string) => Promise<void>;
   endMqttConnection: () => Promise<void>;
+  closeMqttSession: () => void;
 }>({
   mqttClient: null,
   setMqttClient: () => { },
@@ -19,6 +22,7 @@ const MqttContext = createContext<{
   publishMessage: async () => { },
   checkMqttConnection: async () => { },
   endMqttConnection: async () => { },
+  closeMqttSession: () => { },
 });
 
 //export const useMqtt = () => useContext(MqttContext);
@@ -30,8 +34,13 @@ export function useMqtt() {
 const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mqttClient, setMqttClient] = useState<mqtt.MqttClient | null>(null);
   const [deviceList, setDeviceList] = useState<DeviceModel[]>([]);
+  const { setAuth, setUser } = useAuth();
+  // Incremented at logout: a connection started before the logout is abandoned
+  const sessionGeneration = useRef(0);
 
-  const connectToMqtt = useCallback(async () => {
+  // Connects to the broker with the MQTT account given by IotxApiServer after login
+  // (the credentials are not in the app bundle).
+  const connectToMqtt = useCallback(async (sessionToken: string) => {
     console.log("connection request to mqtt broker... mqtt-connected-status: " + localStorage.getItem("mqtt-connected-status"));
 
     //const rand = Math.floor(Math.random() * 100);
@@ -44,13 +53,27 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
 
     console.log("MQTT not connected or connecting, do a new connection");
+    localStorage.setItem("mqtt-connected-status", "connecting");
+
+    const generation = sessionGeneration.current;
+    const credentials = await ApiCalls({ token: sessionToken }, `${config.wsDatabaseUrl}/getmqttcredentials/`, "get", setAuth, setUser);
+    if (!credentials || credentials.error || !credentials.username) {
+      console.error("MQTT credentials not available: " + (credentials?.error?.message ?? "no answer"));
+      localStorage.setItem("mqtt-connected-status", "disconnected");
+      return;
+    }
+    if (generation !== sessionGeneration.current) {
+      console.log("Logged out while connecting: MQTT connection abandoned");
+      localStorage.setItem("mqtt-connected-status", "disconnected");
+      return;
+    }
 
     const brokerUrl = `${config.mqttServer}`;
 
     const options = {
       clientId: clientId, //`${config.mqttClientId}-${rand.toString()}`,
-      username: `${config.mqttUsername}`,
-      password: `${config.mqttPassword}`,
+      username: credentials.username,
+      password: credentials.password,
       reconnectPeriod: 0,
     };
 
@@ -73,7 +96,7 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     client.on('error', (err) => {
       console.error('Connection error: ', err)
       client.end()
-      localStorage.setItem("mqtt-connected", "false");
+      localStorage.setItem("mqtt-connected-status", "disconnected");
     })
 
     client.on('reconnect', () => {
@@ -141,7 +164,7 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
          return newDeviceList;
       });
     });
-  }, []);
+  }, [setAuth, setUser]);
 
   /*
   useEffect(() => {
@@ -164,7 +187,11 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   };
 
-  const checkMqttConnection = async (): Promise<void> => {
+  const checkMqttConnection = async (sessionToken?: string): Promise<void> => {
+    if (!sessionToken) {
+      console.log('Not logged in: no MQTT connection');
+      return;
+    }
     if (mqttClient?.connected) {
       console.log('Connessione MQTT attiva');
     } else if (mqttClient) {
@@ -172,7 +199,7 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
       mqttClient.reconnect();
     } else {
       console.log('Nessun client MQTT, nuova connessione...' + window.location.href);
-      await connectToMqtt();   
+      await connectToMqtt(sessionToken);
     }
   };
 
@@ -183,8 +210,20 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
     }
   };
 
+  // Logout: close the connection and forget the device data
+  const closeMqttSession = (): void => {
+    sessionGeneration.current++;
+    if (mqttClient) {
+      mqttClient.end(true);
+      setMqttClient(null);
+      console.log('Connessione MQTT chiusa (logout)');
+    }
+    localStorage.setItem("mqtt-connected-status", "disconnected");
+    setDeviceList([]);
+  };
+
   return (
-    <MqttContext.Provider value={{ mqttClient, setMqttClient, deviceList, setDeviceList, publishMessage, checkMqttConnection, endMqttConnection }}>
+    <MqttContext.Provider value={{ mqttClient, setMqttClient, deviceList, setDeviceList, publishMessage, checkMqttConnection, endMqttConnection, closeMqttSession }}>
       {children}
     </MqttContext.Provider>
   );
