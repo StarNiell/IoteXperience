@@ -5,6 +5,5 @@
     "mqttClientId": "iotxClient01",
     "mqttUsername": "mqtt-user",
     "mqttPassword": "Goldendrops2025",
-    "streamProxyUrl": "http://localhost:3002",
-    "hashingSecret": "Abx2791llein"
+    "streamProxyUrl": "http://localhost:3002"
   }

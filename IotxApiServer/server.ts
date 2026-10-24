@@ -178,8 +178,10 @@ class Server {
             res.json(await this.db.GetDevices());
         });
 
-        this.route('get', '/getstreams', Access.User, async (req, res) => {
-            res.json(await this.db.GetStreams());
+        // Camera URLs (stream_url) only to administrators: users need only the stream id
+        this.route('get', '/getstreams', Access.User, async (req, res, user) => {
+            const streams: any[] = await this.db.GetStreams();
+            res.json(user.admin ? streams : streams.map(({ stream_url, ...stream }) => stream));
         });
 
         this.route('get', '/getdashboards', Access.User, async (req, res, user) => {
@@ -194,7 +196,11 @@ class Server {
                 res.status(403).json({ "error": "Dashboard not assigned to this user" });
                 return;
             }
-            res.json(await this.db.GetDashboard(id));
+            const dashboard: any = await this.db.GetDashboard(id);
+            if (dashboard && !user.admin && Array.isArray(dashboard.streams)) {
+                dashboard.streams = dashboard.streams.map(({ stream_url, ...stream }) => stream);
+            }
+            res.json(dashboard);
         });
 
         // Token to open a video stream through the video proxy.

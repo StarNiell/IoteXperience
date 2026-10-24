@@ -14,7 +14,6 @@ import DashboardStreams from './Pages/dashboardstreams.tsx';
 import Dashboard from './Pages/dashboard.tsx';
 import Users from './Pages/users.tsx';
 import Streams from './Pages/streams.tsx';
-import { StreamSrv } from './Components/streamsrv.tsx';
 import { usePageActive } from "./hooks/usePageActive";
 import { useMqtt } from './Components/mqtt.tsx';
 
@@ -22,17 +21,11 @@ import { useMqtt } from './Components/mqtt.tsx';
 function App() {
 
   //const { auth } = useAuth();
-  const { user, auth, setAuth, setUser } = useAuth();
+  const { auth } = useAuth();
   const isPageActive = usePageActive();
   const {checkMqttConnection, endMqttConnection } = useMqtt();
 
   //const rand = Math.floor(Math.random() * 100);
-
-  useEffect(() => {
-      if (user?.data?.Token) {
-          StreamSrv.updateProxyConfig(user.data.Token, setAuth, setUser);
-      }
-  }, [user]);
 
   
   useEffect(() => {

@@ -1,23 +1,38 @@
 import React, { useState, useEffect } from 'react';
-import config from '../../../config/config.ts';
-import { CryptoUtil } from '../../../utils/cryptoutil.ts';
+import { StreamSrv } from '../../streamsrv.tsx';
+import { useAuth } from '../../../Auth/auth.tsx';
 import { usePageActive } from '../../../hooks/usePageActive.ts';
 
 const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
-    const [streamProxyUrl, setStreamProxyUrl] = useState<string>(
-        `${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}`
-    );
+    const { user, setAuth, setUser } = useAuth();
+    const [streamProxyUrl, setStreamProxyUrl] = useState<string>("");
+    const [streamError, setStreamError] = useState<string>("");
     const [loaded, setLoaded] = useState(false);
     const isActive = usePageActive();
 
+    // When the page becomes active: ask the API for a new stream token, then (re)open the stream.
+    // The token is checked only when the connection is opened: a stream already playing is not
+    // interrupted when it expires.
     useEffect(() => {
-        if (isActive) {
-            console.log("Refresh streamProxyUrl for current stream");
-            const uniqueParam = `&_ts=${Date.now()}`;
-            setLoaded(false); // reset loader quando ricarica lo stream
-            setStreamProxyUrl(`${config.streamProxyUrl}/stream/${stream_id}?token=${CryptoUtil.getTokenValid()}${uniqueParam}`);
-        }
-    }, [isActive, stream_id]);
+        if (!isActive) return;
+        const sessionToken = user?.data?.Token;
+        if (!sessionToken) return;
+
+        let cancelled = false;
+        setLoaded(false); // reset loader quando ricarica lo stream
+        StreamSrv.getStreamUrl(sessionToken, stream_id, setAuth, setUser).then((result) => {
+            if (cancelled) return;
+            if (result.url) {
+                console.log("Refresh streamProxyUrl for current stream");
+                setStreamError("");
+                setStreamProxyUrl(result.url);
+            } else {
+                setStreamProxyUrl("");
+                setStreamError(result.error ?? "Stream not available");
+            }
+        });
+        return () => { cancelled = true; };
+    }, [isActive, stream_id, user?.data?.Token]);
 
     return (
         <div className="bg-dark rounded p-1" style={{ minHeight: '205px' }}>
@@ -40,8 +55,13 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                     overflow: 'hidden',
                 }}
             >
+                {/* Stream not available */}
+                {streamError && (
+                    <div className="text-warning small text-center">{streamError}</div>
+                )}
+
                 {/* Spinner di caricamento */}
-                {!loaded && (
+                {!loaded && !streamError && (
                     <div className="d-flex justify-content-center">
                         <div className="spinner-border text-light" role="status">
                             <span className="visually-hidden">Loading...</span>
@@ -50,6 +70,7 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                 )}
 
                 {/* Immagine streaming */}
+                {streamProxyUrl && (
                 <a
                     href={streamProxyUrl}
                     target="_blank"
@@ -73,6 +94,7 @@ const StreamViewUI: React.FC<{ stream_id: string }> = ({ stream_id }) => {
                         onError={() => setLoaded(false)}
                     />
                 </a>
+                )}
             </div>
         </div>
     );

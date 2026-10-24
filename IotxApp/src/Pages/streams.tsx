@@ -5,8 +5,6 @@ import ApiCalls from '../Components/apicalls.tsx';
 import { useAuth } from '../Auth/auth.tsx';
 import config from '../config/config.ts'; // Import the configuration
 import { StreamModel } from '../Components/devices/models/streamModel.tsx';
-import { StreamSrv } from '../Components/streamsrv.tsx';
-import { CryptoUtil } from '../utils/cryptoutil.ts';
 
 const Streams: React.FC = () => {
     const [streams, setStreams] = useState<StreamModel[]>([]);
@@ -38,9 +36,7 @@ const Streams: React.FC = () => {
 
         } else {
             setStreams(data);
-            const tokenValid: string = CryptoUtil.getTokenValid();   
-            // Aggiorna il proxy dopo aver aggiornato la lista
-            await StreamSrv.sendConfigToProxy(data, tokenValid);
+            // The video proxy reads the stream list from IotxApiServer by itself
 
         }
     };
