@@ -4,6 +4,8 @@ import { DeviceModel } from './deviceModel';
 import { UserDashboardModel } from './userDashboardModel';
 import { UserModel } from './userModel';
 import { StreamModel } from './streamModel';
+import { AppConfig } from './config';
+import { createStreamToken, keyEquals } from './streamtoken';
 
 type Request = express.Request;
 type Response = express.Response;
@@ -193,6 +195,47 @@ class Server {
                 return;
             }
             res.json(await this.db.GetDashboard(id));
+        });
+
+        // Token to open a video stream through the video proxy.
+        // Users get it only for the streams in their dashboards (administrators: any stream).
+        this.route('get', '/getstreamtoken', Access.User, async (req, res, user) => {
+            const streamId = this.params(req).stream;
+            if (typeof streamId !== 'string' || streamId.trim() === '') throw new BadRequest('Invalid stream');
+            const cfg = AppConfig.streams;
+            if (!cfg.tokenSecret) {
+                res.status(503).json({ "error": "Stream tokens not configured (STREAM_TOKEN_SECRET)" });
+                return;
+            }
+            if (!user.admin && !(await this.db.UserCanViewStream(user.id, streamId))) {
+                console.warn(`User ${user.id}: stream "${streamId}" denied (not in the user's dashboards)`);
+                res.status(403).json({ "error": "Stream not available for this user" });
+                return;
+            }
+            const t = createStreamToken(cfg.tokenSecret, streamId, user.id, cfg.tokenTtlHours * 3600);
+            res.json({ "stream": streamId, "token": t.token, "expires": t.expires.toISOString() });
+        });
+
+        // --- Video proxy (service key, no user session) ---
+
+        // Stream list read by IotxVideoProxyServer: { "streams": { "<stream_id>": "<stream_url>" } }
+        this.app.get('/proxy/streams', async (req, res) => {
+            try {
+                const key = AppConfig.streams.proxyServiceKey;
+                if (!key) {
+                    res.status(503).json({ "error": "Proxy access not configured (PROXY_SERVICE_KEY)" });
+                    return;
+                }
+                if (!keyEquals(req.get('X-Iotx-Service-Key'), key)) {
+                    console.warn(`GET /proxy/streams denied (invalid service key) from ${req.ip}`);
+                    res.status(403).json({ "error": "Invalid service key" });
+                    return;
+                }
+                res.json({ "streams": await this.db.GetStreamMap() });
+            }
+            catch (error) {
+                this.fail(res, error, 'GET /proxy/streams');
+            }
         });
 
         // --- Administrators: devices ---

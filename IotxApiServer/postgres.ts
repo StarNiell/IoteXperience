@@ -959,6 +959,44 @@ class Postgres {
         return rows;
     }
 
+    // True if the stream (stream_id) is in a dashboard assigned to the user
+    public async UserCanViewStream(userid: number, streamId: string): Promise<boolean> {
+        var ret = false;
+        try {
+            var connection = await this.getConnection();
+            let sql: string = "SELECT 1 FROM streams s ";
+            sql += "JOIN dashboard_streams ds ON ds.streamid = s.id ";
+            sql += "JOIN user_dashboards ud ON ud.dashboardid = ds.dashboardid ";
+            sql += "WHERE s.stream_id = $1 AND ud.userid = $2 LIMIT 1;";
+            const res = await connection.query(sql, [streamId, userid]);
+            ret = res.rows.length > 0;
+        }
+        catch (err) {
+            console.error(err);
+            ret = false;
+        }
+        finally {
+            connection?.release();
+        }
+        return ret;
+    }
+
+    // Stream list for the video proxy: { stream_id: stream_url }
+    public async GetStreamMap(): Promise<Record<string, string>> {
+        const map: Record<string, string> = {};
+        var connection = await this.getConnection();
+        try {
+            const res = await connection.query("SELECT stream_id, stream_url FROM streams WHERE stream_id <> '' AND stream_url <> '' ORDER BY id");
+            for (const row of res.rows) {
+                map[row.stream_id] = row.stream_url;
+            }
+        }
+        finally {
+            connection.release();
+        }
+        return map;
+    }
+
     public async AddDashboardStream(dashboard_id: number, stream_id: number): Promise<boolean> {
         let ret: boolean = false;
         try {

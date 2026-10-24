@@ -45,6 +45,10 @@ function optionalInt(name: string, defaultValue: number): number {
     return n;
 }
 
+function optionalString(name: string): string {
+    return (process.env[name] ?? '').trim();
+}
+
 function optionalBool(name: string, defaultValue: boolean): boolean {
     const value = process.env[name];
     if (value === undefined || value === '') return defaultValue;
@@ -69,4 +73,13 @@ export const AppConfig = {
     // Transition period: also keep the legacy plaintext password column up to date,
     // because an older server version still reads it. Set to false once every server is updated.
     passwordPlaintextSync: optionalBool('PASSWORD_PLAINTEXT_SYNC', true),
+    // Video streams (IotxVideoProxyServer). Empty values disable the related routes.
+    streams: {
+        // Secret shared with the video proxy to sign stream tokens
+        tokenSecret: optionalString('STREAM_TOKEN_SECRET'),
+        // Validity of a stream token (needed only to open a stream)
+        tokenTtlHours: optionalInt('STREAM_TOKEN_TTL_HOURS', 24),
+        // Key the video proxy uses to read the stream list (header X-Iotx-Service-Key)
+        proxyServiceKey: optionalString('PROXY_SERVICE_KEY'),
+    },
 };
