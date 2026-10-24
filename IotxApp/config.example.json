@@ -1,0 +1,6 @@
+{
+  "wsDatabaseUrl": "http://your-server.example.com:5722",
+  "mqttServer": "ws://your-server.example.com:5723",
+  "mqttClientId": "iotxClient01",
+  "streamProxyUrl": "http://your-server.example.com:3002"
+}

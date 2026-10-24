@@ -11,6 +11,7 @@ import "./App.css";
 import AuthProvider from "./Auth/auth.tsx";
 import MqttProvider from "./Components/mqtt.tsx";
 import DevicesProvider from "./Components/devices-from-db.tsx";
+import { loadConfig } from "./config/config.ts";
 
   // OVERRIDE CONSOLE LOG CON TIMESTAMP
   const originalConsole = {
@@ -49,18 +50,34 @@ import DevicesProvider from "./Components/devices-from-db.tsx";
     const randomNum = Math.floor(Math.random() * 1000000);
     return `${timestamp}-${randomNum}`;
   }
-createRoot(document.getElementById('root')!).render(
-  <Container style={{ minHeight: '100vh', paddingTop: '20px' }}>
-    <div className='rounded' style={{ backgroundColor: '#222222', minHeight: '95vh', padding: '10px' }}>
-      <StrictMode>
-        <AuthProvider>
-          <MqttProvider>
-            <DevicesProvider>
-              <App />
-            </DevicesProvider>
-          </MqttProvider>
-        </AuthProvider>
-      </StrictMode>
-    </div>
-  </Container>
-)
+const root = createRoot(document.getElementById('root')!);
+
+// The configuration (config.json next to index.html) is read before the app starts
+loadConfig()
+  .then(() => {
+    root.render(
+      <Container style={{ minHeight: '100vh', paddingTop: '20px' }}>
+        <div className='rounded' style={{ backgroundColor: '#222222', minHeight: '95vh', padding: '10px' }}>
+          <StrictMode>
+            <AuthProvider>
+              <MqttProvider>
+                <DevicesProvider>
+                  <App />
+                </DevicesProvider>
+              </MqttProvider>
+            </AuthProvider>
+          </StrictMode>
+        </div>
+      </Container>
+    );
+  })
+  .catch((error) => {
+    console.error("Configuration not loaded:", error);
+    root.render(
+      <Container style={{ paddingTop: '40px', color: '#ddd' }}>
+        <h4>IotxApp: configuration not available</h4>
+        <p>The file <code>config.json</code> could not be read ({String(error?.message ?? error)}).</p>
+        <p>Create it next to <code>index.html</code> from <code>config.example.json</code>.</p>
+      </Container>
+    );
+  });
