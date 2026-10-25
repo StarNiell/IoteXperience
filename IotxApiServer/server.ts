@@ -184,8 +184,10 @@ class Server {
             res.json(user.admin ? streams : streams.map(({ stream_url, ...stream }) => stream));
         });
 
+        // The user's dashboards; administrators can ask for all of them with all=true (admin pages)
         this.route('get', '/getdashboards', Access.User, async (req, res, user) => {
-            res.json(await this.db.GetDashboards(user.id));
+            const all = String(this.params(req).all ?? '') === 'true';
+            res.json(all && user.admin ? await this.db.GetAllDashboards() : await this.db.GetDashboards(user.id));
         });
 
         // A dashboard: only if assigned to the user (administrators see all)

@@ -7,6 +7,18 @@ It talks to:
 - the **MQTT broker** (WebSocket): device values (`iotx/out/#`) and commands (`iotx/in`);
 - **IotxVideoProxyServer** (HTTP): camera streams.
 
+![Dashboard, dark and light theme](../docs/screenshots/dashboard.webp)
+
+More screenshots in the [project README](../README.md).
+
+## Features
+
+- Dashboards with widgets for the device types: switch, button (short pulse), contact, sensor, camera
+- Light and dark theme, automatic or chosen by the user; layout for phone, tablet and computer
+- MQTT over WebSocket with automatic reconnection; red widget headers when the connection is
+  lost or a device stops sending data
+- Administration: devices, cameras, dashboards (widgets, cameras, users) and users
+
 ## Configuration
 
 The addresses are **not** compiled into the bundle: the app reads `config.json` at startup,

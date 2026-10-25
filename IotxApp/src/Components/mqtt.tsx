@@ -43,6 +43,7 @@ interface DevicePayload {
   unit2?: string;
   subscription: string;
   status: string;
+  ip?: string;
 }
 
 // Returns the payload of a device message, or null (with a warning) if it is not usable.
@@ -114,6 +115,7 @@ const MqttProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => 
         unit2: payload.unit2 ?? "",
         subscription: payload.subscription,
         status: payload.status,
+        ip: typeof payload.ip === "string" ? payload.ip : undefined,
       };
 
       if (deviceIndex !== -1) {

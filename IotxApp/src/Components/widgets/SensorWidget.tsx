@@ -27,7 +27,7 @@ const SensorWidget: React.FC<SensorWidgetProps> = ({ value, unit, value2, unit2,
     const fraction = valid ? Math.min(1, Math.max(0, (value - min) / range)) : 0;
     const text = valid ? `${value.toFixed(1)}${unit}` : "—";
     const secondary = value2 !== null && value2 !== undefined && Number.isFinite(Number(value2))
-        ? `${value2}${unit2 ? " " + unit2 : ""}` : "";
+        ? `${Number.isInteger(Number(value2)) ? Number(value2) : Number(value2).toFixed(1)}${unit2 ? " " + unit2 : ""}` : "";
 
     return (
         <div className="iotx-sensor iotx-card-control">

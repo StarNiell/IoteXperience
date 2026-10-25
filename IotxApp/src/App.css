@@ -553,41 +553,125 @@ body {
   color: var(--iotx-text);
 }
 
-/* ---------- Admin tables (restyled in a later step) ---------- */
+/* ---------- Admin pages: toolbar, lists, rows ---------- */
 
-.tableContainer {
-  max-width: 1100px;
-  margin: auto;
-  overflow-x: auto;
+.iotx-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
 }
-.iotx-table {
-  border-radius: var(--iotx-radius-sm);
+.iotx-toolbar .iotx-search {
+  flex: 1 1 220px;
+  min-width: 0;
+}
+.iotx-toolbar .iotx-segmented { flex: 0 1 auto; }
+.iotx-toolbar .iotx-segmented button { padding: 7px 12px; }
+
+.iotx-list {
   background: var(--iotx-surface);
+  border-radius: var(--iotx-radius);
+  box-shadow: var(--iotx-shadow);
   overflow: hidden;
-  width: 100%;
 }
-.iotx-table thead {
-  background: var(--iotx-surface-2);
-}
-.iotx-table th {
-  padding: 1rem;
-  font-weight: 700;
-  vertical-align: middle;
-  color: var(--iotx-text);
-}
-.iotx-table td {
-  padding: 1rem;
-  vertical-align: middle;
-  color: var(--iotx-text);
+.iotx-list + .iotx-section-head { margin-top: 24px; }
+.iotx-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 12px 16px;
   border-top: 1px solid var(--iotx-line);
 }
-.iotx-table tbody tr:hover {
-  background-color: var(--iotx-surface-2);
+.iotx-row:first-child { border-top: none; }
+.iotx-row-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: var(--iotx-radius-sm);
+  background: var(--iotx-surface-2);
+  color: var(--iotx-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  font-weight: 700;
 }
-.text-bg-badge {
-  color: #fff !important;
-  background-color: #555555 !important;
+.iotx-row-main {
+  flex: 1 1 200px;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
+.iotx-row-title {
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+.iotx-row-sub {
+  font-size: 13px;
+  color: var(--iotx-muted);
+  overflow-wrap: anywhere;
+}
+.iotx-row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-left: auto;
+}
+.iotx-row-actions .btn { --bs-btn-padding-y: 0.35rem; --bs-btn-padding-x: 0.7rem; --bs-btn-font-size: 0.85rem; }
+@media (max-width: 575.98px) {
+  .iotx-row-actions { width: 100%; margin-left: 54px; }
+}
+.iotx-tag {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--iotx-surface-2);
+  color: var(--iotx-muted);
+  white-space: nowrap;
+}
+.iotx-tag[data-tone="accent"] { background: color-mix(in srgb, var(--iotx-accent) 16%, transparent); color: var(--iotx-accent); }
+.iotx-tag[data-tone="ok"] { background: color-mix(in srgb, var(--iotx-ok) 16%, transparent); color: var(--iotx-ok); }
+.iotx-tag[data-tone="danger"] { background: color-mix(in srgb, var(--iotx-danger) 16%, transparent); color: var(--iotx-danger); }
+.iotx-list-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--iotx-muted);
+}
+.iotx-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 14px;
+  color: var(--iotx-muted);
+  text-decoration: none;
+  margin-bottom: 4px;
+}
+.iotx-back:hover { color: var(--iotx-text); }
+.iotx-head-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 12px;
+}
+.iotx-form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.iotx-form-grid .iotx-span-2 { grid-column: span 2; }
+.form-switch { padding-left: 0; min-height: 1.6em; display: flex; align-items: center; flex-wrap: wrap; gap: 0.6em; }
+.form-switch .form-check-input { width: 2.6em; height: 1.4em; margin: 0; float: none; cursor: pointer; }
+.form-switch .form-text { width: 100%; }
+.form-check-input:checked { background-color: var(--iotx-accent); border-color: var(--iotx-accent); }
+.form-check-label { cursor: pointer; }
 
 /* ---------- Bootstrap components on our tokens ---------- */
 
@@ -800,3 +884,17 @@ body {
 .iotx-facts > div:first-child { border-top: none; padding-top: 0; }
 .iotx-facts dt { font-weight: 500; color: var(--iotx-muted); }
 .iotx-facts dd { margin: 0; text-align: right; overflow-wrap: anywhere; }
+
+/* Segmented links (tabs) */
+.iotx-segmented a.btn {
+  --bs-btn-padding-y: 7px;
+  --bs-btn-font-weight: 500;
+  border: none;
+  border-radius: 9px;
+  color: var(--iotx-muted);
+  min-width: 96px;
+}
+.iotx-segmented a.btn.active {
+  background: var(--iotx-surface-2);
+  color: var(--iotx-text);
+}

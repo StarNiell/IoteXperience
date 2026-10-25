@@ -19,12 +19,13 @@ export class DeviceModel {
   dashboard_device_id: number = 0;
   offset: number = 0;
   offset2: number = 0;
+  ip?: string;          // device address (from MQTT, firmware 1.x): link to its configuration page
 
   constructor(obj: {
     id: number, topic: string; device_id: string; timestamp: string, type: string;
     value: number; unit: string, value2: number; unit2: string, subscription: string, status: string;
     step: number, min: number, max: number, title: string, description: string;
-    position: number; dashboard_device_id: number; offset: number; offset2: number;
+    position: number; dashboard_device_id: number; offset: number; offset2: number; ip?: string;
   }) {
     this.id = obj.id;
     this.topic = obj.topic;
@@ -46,5 +47,6 @@ export class DeviceModel {
     this.dashboard_device_id = obj.dashboard_device_id;
     this.offset = obj.offset;
     this.offset2 = obj.offset2;
+    this.ip = obj.ip;
   }
 }

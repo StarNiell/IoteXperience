@@ -51,7 +51,7 @@ const Device: React.FC<{ device: DeviceModel }> = ({ device }) => {
                 <WidgetCard title={title} level={state.level} status={state.text} wide>
                     <SensorWidget title={title}
                         value={value + (Number(device.offset) || 0)} unit={device.unit ?? ""}
-                        value2={device.value2 ?? null} unit2={device.unit2 ?? ""}
+                        value2={device.value2 === null || device.value2 === undefined ? null : Number(device.value2) + (Number(device.offset2) || 0)} unit2={device.unit2 ?? ""}
                         min={Number(device.min) || 0} max={Number(device.max) || 100} />
                 </WidgetCard>
             );

@@ -108,8 +108,8 @@ class Postgres {
                 let lastId: number = 0;
                 let sql: string = "INSERT INTO devices("
                 sql += "device_id, device_title, device_description, device_topic, device_subscription, device_type, device_value, device_step, device_min, device_max, device_unit, device_status, device_unit2, device_value2, device_offset, device_offset2) "
-                sql += "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12);"
-                await connection.query(sql, [device.device_id, device.title, device.description, device.topic, device.subscription, device.type, device.value, device.step, device.min, device.max, device.unit, device.status, device.value2, device.unit2, device.offset, device.offset2]);
+                sql += "VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16);"
+                await connection.query(sql, [device.device_id, device.title, device.description, device.topic, device.subscription, device.type, device.value, device.step, device.min, device.max, device.unit, device.status, device.unit2 ?? "", device.value2 ?? 0, device.offset ?? 0, device.offset2 ?? 0]);
                 var res
                 if (res = await connection.query("SELECT MAX(id) as id FROM devices")) {
                     lastId = res.rows[0].id;
@@ -168,6 +168,23 @@ class Postgres {
             if (res = await connection.query("SELECT * FROM devices")) {
                 rows = res.rows;
             }
+        }
+        catch (err) {
+            console.error(err);
+        }
+        finally {
+            connection?.release();
+        }
+        return rows;
+    }
+
+    // Every dashboard (administrator pages)
+    public async GetAllDashboards() {
+        var rows: any[] = [];
+        try {
+            var connection = await this.getConnection();
+            const res = await connection.query("SELECT * FROM dashboards ORDER BY id");
+            rows = res.rows;
         }
         catch (err) {
             console.error(err);
@@ -258,8 +275,8 @@ class Postgres {
                         description: row.device_description,
                         position: row.dashboard_devices_position,
                         dashboard_device_id: row.dashboard_devices_id,
-                        value2: row.value2,
-                        unit2: row.unit2,
+                        value2: row.device_value2,
+                        unit2: row.device_unit2,
                         offset: row.device_offset,
                         offset2: row.device_offset2
                     }));
@@ -358,26 +375,34 @@ class Postgres {
             var connection = await this.getConnection();
             let sql: string = "";
 
+            // "Default" is per user: the dashboard opened after login.
+            // Making one dashboard the default clears the flag on the user's other dashboards.
+            await connection.query("BEGIN");
             for (const element of usersDashboard) {
+                const isDefault = element.hasAccess && element.isDefault === true;
+                if (isDefault) {
+                    sql = "UPDATE user_dashboards SET defaultdb = false WHERE userid = $1 AND dashboardid <> $2;";
+                    await connection.query(sql, [element.userId, element.dashboardId]);
+                }
                 if (element.id == 0 && element.hasAccess) {
                     sql = "INSERT INTO user_dashboards (userid, dashboardid, defaultdb) VALUES ($1, $2, $3);";
-                    await connection.query(sql, [element.userId, element.dashboardId, element.isDefault ?? false]);
+                    await connection.query(sql, [element.userId, element.dashboardId, isDefault]);
                 }
-                else if (element.id > 0 && element.hasAccess && element.isDefault) {
-                    sql = "UPDATE user_dashboards SET defaultdb = false WHERE dashboardid = $1;";
-                    await connection.query(sql, [element.dashboardId]);
-                    sql = "UPDATE user_dashboards SET defaultdb = true WHERE id = $1;";
-                    await connection.query(sql, [element.id]);
+                else if (element.id > 0 && element.hasAccess) {
+                    sql = "UPDATE user_dashboards SET defaultdb = $2 WHERE id = $1;";
+                    await connection.query(sql, [element.id, isDefault]);
                 }
                 else if (element.id > 0 && !element.hasAccess) {
                     sql = "DELETE FROM user_dashboards WHERE id = $1;";
                     await connection.query(sql, [element.id]);
                 }
             }
+            await connection.query("COMMIT");
             ret = true;
         }
         catch (err) {
             console.error(err);
+            try { await connection?.query("ROLLBACK"); } catch { }
             ret = false;
         }
         finally {
@@ -878,6 +903,7 @@ class Postgres {
             sql += "INSERT INTO dashboard_devices (dashboardid, deviceid, position) VALUES ( ";
             sql += "$1, $2, COALESCE((SELECT LastPosition + 1 FROM LP), 1)); ";
             await connection.query(sql, [dashboard_id, device_id]);
+            ret = true;
         }
         catch (err) {
             console.error(err);
@@ -903,6 +929,7 @@ class Postgres {
             sql += "	dashboardid = $1::integer ";
             sql += "	AND Position > (SELECT Position FROM Deleted); ";
             await connection.query(sql, [dashboard_id, dashboard_device_id]);
+            ret = true;
         }
         catch (err) {
             console.error(err);
@@ -1008,6 +1035,7 @@ class Postgres {
             sql += "INSERT INTO dashboard_streams (dashboardid, streamid, position) VALUES ( ";
             sql += "$1, $2, COALESCE((SELECT LastPosition + 1 FROM LP), 1)); ";
             await connection.query(sql, [dashboard_id, stream_id]);
+            ret = true;
         }
         catch (err) {
             console.error(err);
@@ -1033,6 +1061,7 @@ class Postgres {
             sql += "	dashboardid = $1::integer ";
             sql += "	AND Position > (SELECT Position FROM Deleted); ";
             await connection.query(sql, [dashboard_id, dashboard_stream_id]);
+            ret = true;
         }
         catch (err) {
             console.error(err);
@@ -1104,7 +1133,7 @@ class Postgres {
             var connection = await this.getConnection();
 
             var res
-            if (res = await connection.query("SELECT COUNT(*) as Exists FROM users WHERE username = $1 and id <> $2", [stream.stream_id, stream.id])) {
+            if (res = await connection.query("SELECT COUNT(*) as Exists FROM streams WHERE stream_id = $1 and id <> $2", [stream.stream_id, stream.id])) {
                 if (res.rows[0].exists > 0) {
                     ret = true;
                 }

@@ -1,239 +1,204 @@
-import React, { useState, useEffect } from 'react';
-import { Row, Col, Button, Table, Modal, Form } from 'react-bootstrap';
-import Notification from '../Components/notification.tsx'; // Import the Notification component
-import ApiCalls from '../Components/apicalls.tsx';
-import { useAuth } from '../Auth/auth.tsx';
-import config from '../config/config.ts'; // Import the configuration
-import { useNavigate } from 'react-router-dom';
+import React, { useCallback, useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { Modal, Button } from 'react-bootstrap';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faGauge, faPlus, faPen, faTrash, faTableCells, faVideo, faUsers } from '@fortawesome/free-solid-svg-icons';
 import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
 import { UserDashboardModel } from '../Components/devices/models/userDashboardModel.tsx';
+import { useAdminApi } from '../Components/admin/useAdminApi.ts';
+import { useAuth } from '../Auth/auth.tsx';
+import { loadDashboards } from '../Auth/session.ts';
+import ConfirmDialog from '../Components/admin/ConfirmDialog.tsx';
+import AdminToast from '../Components/admin/AdminToast.tsx';
 
+// Dashboard 1 is the main one (new devices are added to it): it cannot be deleted
+const MAIN_DASHBOARD_ID = 1;
+
+// Dashboards: create, rename, delete; choose widgets, cameras and users
 const Dashboards: React.FC = () => {
+    const { call, toast, setToast, notify } = useAdminApi();
+    const { user, setAuth, setUser, setDashboards: setMenuDashboards } = useAuth();
     const [dashboards, setDashboards] = useState<DashboardModel[]>([]);
-    const [showModal, setShowModal] = useState(false);
-    const [showUserModal, setShowUserModal] = useState(false);
-    const [showError, setShowError] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('');
-    const [currentDashboard, setCurrentDashboard] = useState<DashboardModel | null>(null);
-    const [newDashboardName, setNewDashboardName] = useState('');
-    const [userDashboardList, setUserDashboardList] = useState<UserDashboardModel[]>([]);
-    const { setAuth, setUser, user } = useAuth();
-    const navigate = useNavigate();
+    const [loading, setLoading] = useState(true);
+    const [rename, setRename] = useState<{ id: number, name: string } | null>(null);
+    const [removing, setRemoving] = useState<DashboardModel | null>(null);
+    const [access, setAccess] = useState<{ dashboard: DashboardModel, users: UserDashboardModel[] } | null>(null);
+    const [busy, setBusy] = useState(false);
 
-    useEffect(() => {
-        fetchDashboards();
-    }, []);
-
-    const fetchDashboards = async () => {
+    const fetchDashboards = useCallback(async () => {
+        const data = await call<DashboardModel[]>("getdashboards/", "get", { all: true });
+        setLoading(false);
+        if (data) setDashboards(data);
+        // Keep the menu in step with the changes
         const token = user?.data?.Token;
-        const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdashboards/`, "get", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
-            setShowError(true);
-
-        } else {
-            setDashboards(data);
+        if (token) {
+            const result = await loadDashboards(token, setAuth, setUser);
+            if (result.dashboards) setMenuDashboards(result.dashboards);
         }
-    };
+    }, [call, user?.data?.Token, setAuth, setUser, setMenuDashboards]);
 
-    const handleNewDashboard = () => {
-        setCurrentDashboard(null);
-        setNewDashboardName('');
-        setShowModal(true);
-    };
+    useEffect(() => { fetchDashboards(); }, [fetchDashboards]);
 
-    const handleDevicesDashboard = (dashboard: DashboardModel) => {
-        navigate(`/dashboards/d/${dashboard.id}`);
-    };
+    const renameError = rename && (
+        !rename.name.trim() ? "Enter a name." :
+            dashboards.some(d => d.name.trim().toLowerCase() === rename.name.trim().toLowerCase() && d.id !== rename.id) ? "Another dashboard has this name." : "");
 
-    const handleStreamsDashboard = (dashboard: DashboardModel) => {
-        navigate(`/dashboards/s/${dashboard.id}`);
-    }
-    const handleDeleteDashboard = async (dashboard: DashboardModel) => {
-        const token = user?.data?.Token;
-        const data = await ApiCalls({ token, id: dashboard.id }, `${config.wsDatabaseUrl}/deletedashboard/`, "post", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
-            setShowError(true);
-
-        } else {
+    const saveName = async () => {
+        if (!rename || renameError) return;
+        setBusy(true);
+        const name = rename.name.trim();
+        const ok = rename.id > 0
+            ? await call("editdashboard/", "post", { id: rename.id, name })
+            : await call("newdashboard/", "post", { name });
+        setBusy(false);
+        if (ok !== null) {
+            notify(rename.id > 0 ? "Dashboard renamed" : "Dashboard created");
+            setRename(null);
             fetchDashboards();
         }
     };
 
-    const handleEditDashboard = (dashboard: DashboardModel) => {
-        setCurrentDashboard(dashboard);
-        setNewDashboardName(dashboard.name);
-        setShowModal(true);
-    };
-
-    const handleSaveDashboard = async () => {
-        const token = user?.data?.Token;
-        if (currentDashboard) {
-            // Edit existing dashboard
-            const data = await ApiCalls({ token, id: currentDashboard.id, name: newDashboardName }, `${config.wsDatabaseUrl}/editdashboard/`, "post", setAuth, setUser);
-            if (data?.error) {
-                console.log(data.error.message);
-                setErrorMessage(data.error.message);
-                setShowError(true);
-
-            } else {
-                fetchDashboards();
-            }
-        } else {
-            // Create new dashboard
-            const data = await ApiCalls({ token, name: newDashboardName }, `${config.wsDatabaseUrl}/newdashboard/`, "post", setAuth, setUser);
-            if (data?.error) {
-                console.log(data.error.message);
-                setErrorMessage(data.error.message);
-                setShowError(true);
-
-            } else {
-                fetchDashboards();
-            }
-        }
-        setShowModal(false);
-    };
-
-    const handleUsersDashboard = async (dashboard: DashboardModel) => {
-        const token = user?.data?.Token;
-        const data = await ApiCalls({ token, id: dashboard.id }, `${config.wsDatabaseUrl}/getusersdashboard/`, "get", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
-            setShowError(true);
-        } else {
-            setUserDashboardList(data);
-            setCurrentDashboard(dashboard);
-            setShowUserModal(true);
+    const remove = async () => {
+        if (!removing) return;
+        setBusy(true);
+        const ok = await call("deletedashboard/", "post", { id: removing.id });
+        setBusy(false);
+        setRemoving(null);
+        if (ok !== null) {
+            notify("Dashboard deleted");
+            fetchDashboards();
         }
     };
 
-    const handleSaveUsersDashboard = async () => {
-        const token = user?.data?.Token;
-        const data = await ApiCalls({ token, users: userDashboardList, dashboardId: currentDashboard?.id }, `${config.wsDatabaseUrl}/saveusersdashboard/`, "post", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
-            setShowError(true);
-        } else {
-            setShowUserModal(false);
-        }
+    const openAccess = async (dashboard: DashboardModel) => {
+        const users = await call<UserDashboardModel[]>("getusersdashboard/", "get", { id: dashboard.id });
+        if (users) setAccess({ dashboard, users });
     };
 
+    const updateAccess = (userId: number, change: Partial<UserDashboardModel>) => {
+        if (!access) return;
+        setAccess({
+            ...access,
+            users: access.users.map(u => {
+                if (u.userId !== userId) return u;
+                const next = { ...u, ...change };
+                if (!next.hasAccess) next.isDefault = false;
+                return next;
+            }),
+        });
+    };
+
+    const saveAccess = async () => {
+        if (!access) return;
+        setBusy(true);
+        const ok = await call("saveusersdashboard/", "post", { users: access.users, dashboardId: access.dashboard.id });
+        setBusy(false);
+        if (ok !== null) {
+            notify("Users saved");
+            setAccess(null);
+            fetchDashboards();
+        }
+    };
 
     return (
         <>
-            <center className='p-3'><h1>Dashboards</h1></center>
-            <div style={{ maxWidth: '800px', margin: 'auto' }}>
-                <Row className="my-3">
-                    <Col>
-                        <Button variant="primary" onClick={handleNewDashboard}>New Dashboard</Button>
-                    </Col>
-                </Row>
-                <Row>
-                    <Col className='tableContainer'>
-                        <Table bsPrefix="iotx-table" responsive>
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {dashboards.map((dashboard) => (
-                                    <tr key={dashboard.id}>
-                                        <td style={{width: "60%"}}>{dashboard.name}</td>
-                                        <td style={{minWidth: "450px"}}>
-                                            <Button variant="warning" onClick={() => handleEditDashboard(dashboard)}>Edit</Button>{' '}
-                                            <Button variant="info" onClick={() => handleDevicesDashboard(dashboard)}>Widgets</Button>{' '}
-                                            <Button variant="success" onClick={() => handleStreamsDashboard(dashboard)}>Streams</Button>{' '}
-                                            <Button variant="secondary" onClick={() => handleUsersDashboard(dashboard)}>Users</Button>{' '}
-                                            {dashboard.id > 1 && <Button variant="danger" disabled={dashboard.id === 1} onClick={() => handleDeleteDashboard(dashboard)}>Delete</Button>}
-                                        </td>
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </Table>
-                    </Col>
-                </Row>
-                <div>
-                    <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
+            <div className="iotx-head-row">
+                <div className="iotx-page-head">
+                    <div className="iotx-eyebrow">Administration</div>
+                    <h1>Dashboards</h1>
                 </div>
+                <Button variant="primary" className="mb-3" onClick={() => setRename({ id: 0, name: "" })}>
+                    <FontAwesomeIcon icon={faPlus} className="me-2" />New dashboard
+                </Button>
             </div>
 
-            <Modal style={{color: "#111111"}} show={showModal} onHide={() => setShowModal(false)}>
+            <div className="iotx-list">
+                {!loading && dashboards.length === 0 && <div className="iotx-list-empty">No dashboards.</div>}
+                {dashboards.map(dashboard => (
+                    <div className="iotx-row" key={dashboard.id}>
+                        <span className="iotx-row-icon"><FontAwesomeIcon icon={faGauge} /></span>
+                        <div className="iotx-row-main">
+                            <div className="iotx-row-title">
+                                <Link to={`/dashboard/${dashboard.id}`} className="text-reset text-decoration-none">{dashboard.name}</Link>
+                                {dashboard.id === MAIN_DASHBOARD_ID && <span className="iotx-tag">Main</span>}
+                            </div>
+                            <div className="iotx-row-sub">Dashboard #{dashboard.id}</div>
+                        </div>
+                        <div className="iotx-row-actions">
+                            <Link className="btn btn-secondary" to={`/dashboards/d/${dashboard.id}`}><FontAwesomeIcon icon={faTableCells} className="me-1" />Widgets</Link>
+                            <Link className="btn btn-secondary" to={`/dashboards/s/${dashboard.id}`}><FontAwesomeIcon icon={faVideo} className="me-1" />Cameras</Link>
+                            <Button variant="secondary" onClick={() => openAccess(dashboard)}><FontAwesomeIcon icon={faUsers} className="me-1" />Users</Button>
+                            <Button variant="secondary" onClick={() => setRename({ id: dashboard.id, name: dashboard.name })} aria-label={`Rename ${dashboard.name}`}>
+                                <FontAwesomeIcon icon={faPen} />
+                            </Button>
+                            {dashboard.id !== MAIN_DASHBOARD_ID && (
+                                <Button variant="secondary" onClick={() => setRemoving(dashboard)} aria-label={`Delete ${dashboard.name}`}>
+                                    <FontAwesomeIcon icon={faTrash} className="text-danger" />
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                ))}
+            </div>
+
+            <Modal show={rename !== null} onHide={() => setRename(null)} centered>
                 <Modal.Header closeButton>
-                    <Modal.Title>{currentDashboard ? 'Edit Dashboard' : 'New Dashboard'}</Modal.Title>
+                    <Modal.Title as="h2" className="h5 m-0">{rename && rename.id > 0 ? "Rename dashboard" : "New dashboard"}</Modal.Title>
                 </Modal.Header>
-                <Modal.Body>
-                    <Form>
-                        <Form.Group controlId="formDashboardName">
-                            <Form.Label>Name</Form.Label>
-                            <Form.Control
-                                type="text"
-                                placeholder="Enter dashboard name"
-                                value={newDashboardName}
-                                onChange={(e) => setNewDashboardName(e.target.value)}
-                            />
-                        </Form.Group>
-                    </Form>
+                {rename && (
+                    <form onSubmit={(e) => { e.preventDefault(); saveName(); }} noValidate>
+                        <Modal.Body>
+                            <label className="form-label" htmlFor="db-name">Name</label>
+                            <input id="db-name" className="form-control" autoFocus value={rename.name} onChange={(e) => setRename({ ...rename, name: e.target.value })} />
+                            {rename.id === 0 && <div className="form-text">You can add widgets, cameras and users after creating it.</div>}
+                            {renameError && rename.name !== "" && <div className="iotx-inline-error mt-3" role="alert">{renameError}</div>}
+                        </Modal.Body>
+                        <Modal.Footer>
+                            <Button variant="secondary" onClick={() => setRename(null)}>Cancel</Button>
+                            <Button type="submit" variant="primary" disabled={busy || !!renameError}>Save</Button>
+                        </Modal.Footer>
+                    </form>
+                )}
+            </Modal>
+
+            <Modal show={access !== null} onHide={() => setAccess(null)} centered>
+                <Modal.Header closeButton>
+                    <Modal.Title as="h2" className="h5 m-0">Users of “{access?.dashboard.name}”</Modal.Title>
+                </Modal.Header>
+                <Modal.Body className="p-0">
+                    <div className="px-3 pt-3 iotx-row-sub">
+                        Who can open this dashboard. “Default” is the dashboard a user sees after logging in.
+                    </div>
+                    {access?.users.map(u => (
+                        <div className="iotx-row" key={u.userId}>
+                            <div className="iotx-row-main"><div className="iotx-row-title">{u.userName}</div></div>
+                            <div className="d-flex gap-3 align-items-center">
+                                <div className="form-check form-switch m-0">
+                                    <input id={`acc-${u.userId}`} className="form-check-input" type="checkbox" role="switch" checked={u.hasAccess}
+                                        onChange={(e) => updateAccess(u.userId, { hasAccess: e.target.checked })} />
+                                    <label className="form-check-label" htmlFor={`acc-${u.userId}`}>Access</label>
+                                </div>
+                                <div className="form-check m-0">
+                                    <input id={`def-${u.userId}`} className="form-check-input" type="checkbox" checked={u.isDefault} disabled={!u.hasAccess}
+                                        onChange={(e) => updateAccess(u.userId, { isDefault: e.target.checked })} />
+                                    <label className="form-check-label" htmlFor={`def-${u.userId}`}>Default</label>
+                                </div>
+                            </div>
+                        </div>
+                    ))}
                 </Modal.Body>
                 <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
-                    <Button variant="primary" onClick={handleSaveDashboard}>Save</Button>
+                    <Button variant="secondary" onClick={() => setAccess(null)}>Cancel</Button>
+                    <Button variant="primary" onClick={saveAccess} disabled={busy}>Save</Button>
                 </Modal.Footer>
             </Modal>
 
-            <Modal style={{color: "#111111"}} show={showUserModal} onHide={() => setShowUserModal(false)}>
-                <Modal.Header closeButton>
-                    <Modal.Title>Manage Users</Modal.Title>
-                </Modal.Header>
-                <Modal.Body>
-                    <Table responsive>
-                        <thead>
-                            <tr>
-                                <th>User</th>
-                                <th>Access</th>
-                                <th>Default</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {userDashboardList.map((user) => (
-                                <tr key={user.userId}>
-                                    <td>{user.userName}</td>
-                                    <td>
-                                        <Form.Check
-                                            type="checkbox"
-                                            checked={user.hasAccess}
-                                            onChange={(e) => {
-                                                const updatedList = userDashboardList.map(u => u.userId === user.userId ? { ...u, hasAccess: e.target.checked } : u);
-                                                setUserDashboardList(updatedList);
-                                            }}
-                                        />
-                                    </td>
-                                    <td>
-                                        <Form.Check
-                                            type="checkbox"
-                                            checked={user.isDefault}
-                                            onChange={(e) => {
-                                                const updatedList = userDashboardList.map(u => u.userId === user.userId ? { ...u, isDefault: e.target.checked } : u);
-                                                setUserDashboardList(updatedList);
-                                            }}
-                                        />
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </Table>
-                </Modal.Body>
-                <Modal.Footer>
-                    <Button variant="secondary" onClick={() => setShowUserModal(false)}>Close</Button>
-                    <Button variant="primary" onClick={handleSaveUsersDashboard}>Save</Button>
-                </Modal.Footer>
-            </Modal>
+            <ConfirmDialog show={removing !== null} title="Delete dashboard" confirmLabel="Delete" danger busy={busy}
+                onConfirm={remove} onCancel={() => setRemoving(null)}>
+                Delete <strong>{removing?.name}</strong>? Its widgets and cameras stay available for the other dashboards.
+            </ConfirmDialog>
+
+            <AdminToast toast={toast} onClose={() => setToast(null)} />
         </>
     );
 };
