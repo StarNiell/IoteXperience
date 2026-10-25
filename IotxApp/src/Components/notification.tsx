@@ -1,52 +1,30 @@
-import { Dispatch, SetStateAction } from "react";
+import { Dispatch, SetStateAction, useEffect } from "react";
 
 interface NotificationProps {
-    NotificationType: string;
+    NotificationType: string;          // "error" | "success" | "warning"
     NotificationMessage: string;
-    NotificationStatus: boolean;
+    NotificationStatus: boolean;       // visible
     SetNotificationStatus: Dispatch<SetStateAction<boolean>>;
 }
 
+const TITLES: Record<string, string> = { error: "Error", success: "Done", warning: "Warning" };
+const VISIBLE_TIME = 3500;
+
+// A short message at the bottom of the screen that disappears by itself
 const Notification: React.FC<NotificationProps> = ({ NotificationType, NotificationMessage, NotificationStatus, SetNotificationStatus }) => {
+    useEffect(() => {
+        if (!NotificationStatus) return;
+        const timer = window.setTimeout(() => SetNotificationStatus(false), VISIBLE_TIME);
+        return () => window.clearTimeout(timer);
+    }, [NotificationStatus, NotificationMessage, SetNotificationStatus]);
 
-    const mountedStyle = { animation: "inAnimation 250ms ease-in" };
-    const unmountedStyle = {
-        animation: "outAnimation 270ms ease-out",
-        animationFillMode: "forwards"
-    };
-
-    let title = 'Notification';
-    let bootsClassName = 'Success';
-    switch (NotificationType) {
-        case 'error':
-            title = 'Error';
-            bootsClassName = 'bg-danger';
-            break;
-        case 'success':
-            title = 'Information';
-            bootsClassName = 'bg-success';
-            break;
-        case 'warning':
-            title = 'Warning';
-            bootsClassName = 'bg-warning';
-            break;
-    }
-
-    if (NotificationStatus) {
-        window.setTimeout(() => {
-            SetNotificationStatus(false);
-        }, 2000)
-    }
+    if (!NotificationStatus || !NotificationMessage) return null;
 
     return (
-        <>
-            <div className={NotificationMessage ? 'transitionDiv' : 'hiddenDiv' } style={NotificationStatus ? mountedStyle : unmountedStyle}>
-                <div className={`rounded ${bootsClassName}`} style={{ minWidth: "35%" }}>
-                    <p className='d-flex align-items-center justify-content-center'>{title}</p>
-                    <p className='d-flex align-items-center justify-content-center'>{NotificationMessage}</p>
-                </div>
-            </div>
-        </>
+        <div className="iotx-toast" data-type={NotificationType} role={NotificationType === "error" ? "alert" : "status"}>
+            <strong>{TITLES[NotificationType] ?? "Notification"}</strong>
+            <span>{NotificationMessage}</span>
+        </div>
     );
 }
 

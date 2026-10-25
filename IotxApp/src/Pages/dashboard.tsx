@@ -1,179 +1,108 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import React, { useState, useEffect, useMemo } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuth } from '../Auth/auth.tsx';
 import ApiCalls from '../Components/apicalls.tsx';
 import config from '../config/config.ts';
 import Notification from '../Components/notification.tsx';
-import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
-import { Container, Row, Col } from 'react-bootstrap';
 import Device from '../Components/devices/device.tsx';
-import { useMqtt } from '../Components/mqtt.tsx';
+import Stream from '../Components/devices/stream.tsx';
+import { useMqtt } from '../Components/mqttContext.ts';
 import { DeviceModel } from '../Components/devices/models/deviceModel.tsx';
 import { StreamModel } from '../Components/devices/models/streamModel.tsx';
-import Stream from '../Components/devices/stream.tsx';
-//import { usePageActive } from "../hooks/usePageActive";
+
+interface DashboardData {
+    id: number;
+    name: string;
+    devices: DeviceModel[];   // only the devices of this dashboard, in order
+    streams: StreamModel[];   // only the streams of this dashboard, in order
+}
+
+// Live values from MQTT over the configuration from the database
+function mergeLive(dbDevice: DeviceModel, mqttDevices: DeviceModel[]): DeviceModel {
+    const live = mqttDevices.find(d => d.device_id === dbDevice.device_id);
+    if (!live) return dbDevice;
+    return {
+        ...dbDevice,
+        type: live.type || dbDevice.type,
+        value: live.value,
+        value2: live.value2,
+        unit: live.unit ?? dbDevice.unit,
+        unit2: live.unit2 ?? dbDevice.unit2,
+        timestamp: live.timestamp,
+        subscription: live.subscription || dbDevice.subscription,
+        status: live.status,
+    };
+}
 
 const Dashboard: React.FC = () => {
-    const {dashboardId } = useParams<{ dashboardId: string }>();
-    const {setAuth, setUser, user, dashboards } = useAuth();
-    //const {deviceList, checkMqttConnection } = useMqtt();
-    const {deviceList } = useMqtt();
-    const [dashboard, setDashboard] = useState<DashboardModel | null>(null);
-    const [mergedDevices, setMergedDevices] = useState<DeviceModel[]>([]);
+    const { dashboardId } = useParams<{ dashboardId: string }>();
+    const { setAuth, setUser, user, dashboards } = useAuth();
+    const { deviceList } = useMqtt();
+    const [dashboard, setDashboard] = useState<DashboardData | null>(null);
+    const [loading, setLoading] = useState(true);
     const [showError, setShowError] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-    const navigate = useNavigate();
-    //const isPageActive = usePageActive();
+    const token = user?.data?.Token;
 
-    if (user?.data?.User === undefined) {
-        navigate('/login');
-    }
-    var checkDashboard = dashboardId;
+    // The requested dashboard if the user can see it, otherwise the user's default one
+    const requestedId = parseInt(dashboardId || '0');
+    const id = dashboards.some(d => d.id === requestedId) ? requestedId : (user?.data?.User?.dashboardid ?? 0);
 
-    // useEffect(() => {
-    //     if (checkDashboard === '999') {
-    //         console.log("Refresh dashboards from dashboard page");
-    //         refreshDashboards();
-    //     }
-    // }, [checkDashboard]);
-
-    if (dashboards.filter(dashboard => dashboard.id === parseInt(checkDashboard || '0')).length === 0) {
-        checkDashboard = user?.data?.User.dashboardid.toString();
-    }
-
-    /*
     useEffect(() => {
-        if (isPageActive) {
-            console.log("Page activate: check mqtt connection");
-             checkMqttConnection();
+        if (!token || !id) {
+            setLoading(false);
+            return;
         }
-    }, [isPageActive]);
-    */
-
-    useEffect(() => {
-        fetchDashboard();
-    }, [checkDashboard]);
-
-    useEffect(() => {
-        if (dashboard) {
-            const merged = mergeDevices(dashboard.devices, deviceList);
-            merged.forEach(device => {
-                const apiDevice = dashboard.devices.find((apiDevice: DeviceModel) => apiDevice.device_id === device.device_id);
-                device.dashboard_device_id = apiDevice?.dashboard_device_id || 0;
-                device.id = apiDevice?.id || 0;
-                device.title = apiDevice?.title || '';
-                device.description = apiDevice?.description || '';
-                device.offset = apiDevice?.offset || 0;
-                device.offset2 = apiDevice?.offset2 || 0;
-                device.min = apiDevice?.min || 0;
-                device.max = apiDevice?.max || 100;
-            });
-            setMergedDevices(merged);
-        }
-    }, [deviceList, dashboard]);
-
-    const fetchDashboard = async () => {
-        const token = user?.data?.Token;
-        const id = parseInt(checkDashboard || '0');
-        if (id > 0) {
-            const data = await ApiCalls({ token, id }, `${config.wsDatabaseUrl}/getdashboard`, "get", setAuth, setUser);
-            if (data?.error) {
-                //console.log(data.error.message);
-                setErrorMessage(data.error.message);
+        let cancelled = false;
+        setLoading(true);
+        ApiCalls({ token, id }, `${config.wsDatabaseUrl}/getdashboard`, "get", setAuth, setUser).then((data) => {
+            if (cancelled) return;
+            setLoading(false);
+            if (!data || data.error) {
+                setErrorMessage(data?.error?.message ?? "Dashboard not available");
                 setShowError(true);
-            } else {
-                const merged = mergeDevices(data.devices, deviceList);
-                // Patch to add dashboard_device_id to devices
-                merged.forEach(device => {
-                    const apiDevice = data.devices.find((apiDevice: DeviceModel) => apiDevice.device_id === device.device_id);
-                    device.dashboard_device_id = apiDevice?.dashboard_device_id || 0;
-                    device.id = apiDevice?.id || 0;
-                    device.title = apiDevice?.title || '';
-                    device.description = apiDevice?.description || '';
-                    device.offset = parseFloat(apiDevice?.offset) || 0;
-                    device.offset2 = parseFloat(apiDevice?.offset2) || 0;
-                    device.min = parseFloat(apiDevice?.min) || 0;
-                    device.max = parseFloat(apiDevice?.max) || 100;
-                });
-                // Workaround when refresh page
-                /*
-                iFlag++;
-                if (iFlag > 1) {
-                    navigate(`/dashboard/0`);
-                    await delay(100);
-                    navigate(`/dashboard/${dashboardId}`);
-                } else {
-                 */
-                // Take only devices that are in the dashboard
-
-
-                var filtered = merged.filter(device => device.dashboard_device_id !== 0);
-                const filteredStreams = data.streams.filter((stream: StreamModel) => stream.dashboard_stream_id !== 0);
-                //setDashboard({ ...data, devices: filtered });
-                setDashboard({ ...data, devices: filtered, streams: filteredStreams });
-                setMergedDevices(filtered);
-                //}
+                setDashboard(null);
+                return;
             }
-        }
-    };
-
-    // Unisci device e stream in un unico array, mantenendo l'ordine
-    const allItems = [
-        ...mergedDevices.map(device => ({ ...device, __type: 'device' })),
-        ...(dashboard?.streams || []).map(stream => ({ ...stream, __type: 'stream' }))
-    ];
-
-    const mergeDevices = (apiDevices: DeviceModel[], mqttDevices: DeviceModel[]) => {
-        return apiDevices.map(apiDevice => {
-            const mqttDevice = mqttDevices.find(mqttDevice => mqttDevice.device_id === apiDevice.device_id);
-            return mqttDevice ? { ...apiDevice, ...mqttDevice } : apiDevice;
+            setDashboard({
+                id: data.id,
+                name: data.name,
+                devices: (data.devices ?? []).filter((d: DeviceModel) => d.dashboard_device_id !== 0),
+                streams: (data.streams ?? []).filter((s: StreamModel) => s.dashboard_stream_id !== 0),
+            });
         });
-    };
+        return () => { cancelled = true; };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [id, token]);
 
-    /*
-    function chunkArray(devices: DeviceModel[], chunkSize: number): DeviceModel[][] {
-        const chunks = [];
-        for (let i = 0; i < devices.length; i += chunkSize) {
-            chunks.push(devices.slice(i, i + chunkSize));
-        }
-        return chunks;
-    }
-        */
+    const devices = useMemo(
+        () => (dashboard?.devices ?? []).map(d => mergeLive(d, deviceList)),
+        [dashboard, deviceList]);
 
-    // Chunk dell'array misto
-    function chunkArrayMixed(items: any[], chunkSize: number): any[][] {
-        const chunks = [];
-        for (let i = 0; i < items.length; i += chunkSize) {
-            chunks.push(items.slice(i, i + chunkSize));
-        }
-        return chunks;
-    }
+    const isEmpty = !loading && dashboard && devices.length === 0 && dashboard.streams.length === 0;
 
     return (
-    <>
-        <center className='p-3'><h1>{dashboard?.name}</h1></center>
-
-        <Container className="fluid">
-            {chunkArrayMixed(allItems, 4).map((itemChunk, index) => (
-                <Row key={index}>
-                    {itemChunk.map((item: any) => (
-                        <Col style={{ paddingTop: "10px" }} lg="3" key={item.device_id || item.stream_id}>
-                            {item.__type === 'device' ? (
-                                <Device device={item} />
-                            ) : (
-                                <Stream stream={item} />
-                            )}
-                        </Col>
-                    ))}
-                </Row>
-            ))}
-
-            <div>
-                <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
+        <>
+            <div className="iotx-page-head">
+                <div className="iotx-eyebrow">Dashboard</div>
+                <h1>{dashboard?.name ?? (loading ? "…" : "Dashboard")}</h1>
             </div>
-        </Container>
-    </>
+
+            {loading && !dashboard && (
+                <div className="iotx-empty"><div className="spinner-border spinner-border-sm" role="status"><span className="visually-hidden">Loading…</span></div></div>
+            )}
+
+            {isEmpty && <div className="iotx-empty">This dashboard has no widgets yet.</div>}
+
+            {!loading && !dashboard && !id && <div className="iotx-empty">No dashboard is assigned to your user.</div>}
+
+            <div className="iotx-grid">
+                {devices.map(device => <Device key={`d-${device.id}`} device={device} />)}
+                {dashboard?.streams.map(stream => <Stream key={`s-${stream.id}`} stream={stream} />)}
+            </div>
+
+            <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
+        </>
     );
 }
 export default Dashboard;
-

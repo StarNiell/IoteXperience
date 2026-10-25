@@ -20,9 +20,14 @@ const DevicesProvider: React.FC<{ children: React.ReactNode }> = ({ children }) 
     const [deviceDBList, setDeviceDBList] = useState<DeviceModel[]>([]);
     const { setAuth, setUser, user } = useAuth();
 
-    var token = user?.data?.Token;
+    const token = user?.data?.Token;
 
     const fetchDeviceList = useCallback(async () => {
+        if (!token) {
+            // Not logged in: nothing to ask the API
+            setDeviceDBList([]);
+            return;
+        }
         const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdevices/`, "get", setAuth, setUser);
         //console.log(data);
         if (data?.error) {

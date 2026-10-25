@@ -1,127 +1,132 @@
-import { useRef } from "react";
-import { NavLink } from 'react-router-dom';
+import { useState } from "react";
+import { NavLink, Link } from 'react-router-dom';
+import { Offcanvas } from 'react-bootstrap';
 import { useAuth } from '../Auth/auth';
-import { useMqtt, MqttStatus } from './mqtt';
+import { useMqtt, MqttStatus } from './mqttContext';
+import { useTheme, ThemeMode } from '../theme/themeContext';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faUser, faArrowRightToBracket, faHome, faTableColumns, faTableList, faVideo, faGauge, faDoorOpen, faUsers } from '@fortawesome/free-solid-svg-icons';
+import {
+    faBars, faCircleHalfStroke, faSun, faMoon, faUser, faHome, faTableColumns, faTableList,
+    faVideo, faGauge, faDoorOpen, faUsers, faArrowRightToBracket
+} from '@fortawesome/free-solid-svg-icons';
 import iotxLogo from '/iotx_blue.svg';
-import "bootstrap/dist/css/bootstrap.min.css";
-import "bootstrap/dist/js/bootstrap.bundle.min";
 
-// Colour and description of the MQTT connection indicator
-const mqttStatusInfo: Record<MqttStatus, { className: string; label: string }> = {
-    offline: { className: "bg-danger", label: "No network" },
-    connected: { className: "bg-success", label: "Connected to the devices (MQTT)" },
-    connecting: { className: "bg-warning", label: "Connecting to the devices (MQTT), please wait..." },
-    disconnected: { className: "bg-danger", label: "Not connected to the devices (MQTT)" },
+// Text of the MQTT connection chip
+const MQTT_STATUS_TEXT: Record<MqttStatus, string> = {
+    connected: "Connected",
+    connecting: "Connecting…",
+    disconnected: "Not connected",
+    offline: "No network",
 };
 
+const THEME_NEXT: Record<ThemeMode, ThemeMode> = { auto: 'light', light: 'dark', dark: 'auto' };
+const THEME_ICON = { auto: faCircleHalfStroke, light: faSun, dark: faMoon };
+const THEME_NAME: Record<ThemeMode, string> = { auto: 'Auto', light: 'Light', dark: 'Dark' };
+
+// Top bar (logo, connection status, theme, menu) and side menu
 function Navbar() {
     const { auth, user, dashboards } = useAuth();
     const { status: mqttStatus } = useMqtt();
-    // The indicator is shown only with a real session (MQTT is used only after login)
+    const { mode, setMode } = useTheme();
+    const [menuOpen, setMenuOpen] = useState(false);
+
     const sessionToken = user?.data?.Token;
-    const navButton = useRef<HTMLButtonElement>(null);
-    const linksContainerRef = useRef<HTMLDivElement>(null);
-
-    function collapseNav() {
-        if (navButton.current != null && linksContainerRef.current != null)
-        {
-            navButton.current.classList.add("collapsed");
-            linksContainerRef.current.classList.remove("show");
-        }
-    }
-
-    let myUser: string = "empty";
-    let isAdmin: boolean = false;
-
-    if (user?.data?.User) {
-        myUser = user.data.User.Username;
-        isAdmin = user.data.User.admin;
-    }
+    const loggedIn = Boolean(auth && sessionToken);
+    const username = user?.data?.User?.Username ?? "";
+    const isAdmin = user?.data?.User?.admin === true;
+    const close = () => setMenuOpen(false);
 
     return (
         <>
-            <div className='d-flex rounded justify-content-between sticky-top' style={{ backgroundColor: '#111111', paddingLeft: '5px', paddingRight: '5px' }}>
-                <nav className="navbar navbar-expand-lg navbar-dark bg-dark w-100">
-                    <div className="container-fluid">
-                        <NavLink to="/" className="navbar-brand"><img src={iotxLogo} alt="iotx logo" height={'40px'} /></NavLink>
-                        {sessionToken && (
-                            <span
-                                className={`mqtt-status-dot ${mqttStatusInfo[mqttStatus].className} me-auto`}
-                                title={mqttStatusInfo[mqttStatus].label}
-                                aria-label={mqttStatusInfo[mqttStatus].label}
-                                role="status"
-                            />
-                        )}
-                        <button ref={navButton} className="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
-                            <span className="navbar-toggler-icon"></span>
-                        </button>
-                        <div ref={linksContainerRef} className="collapse navbar-collapse" id="navbarNav">
-                            <ul className="navbar-nav">
-                            <li className="nav-item">
-                                    <NavLink onClick={collapseNav} to="/" className="nav-link"><FontAwesomeIcon icon={faHome} /><span style={{ paddingLeft: '4px' }}>Home</span></NavLink>
-                                </li>
-                                {
-                                    /*
-                                <li className="nav-item">
-                                    <NavLink to="/dashboardtest" className="nav-link"><FontAwesomeIcon icon={faDatabase} /><span style={{ paddingLeft: '4px' }}>Test</span></NavLink>
-                                </li>
-                                    */
-                                }
-                                {auth && (
-                                    <>
-                                        <li className="nav-item dropdown">
-                                            <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                <FontAwesomeIcon icon={faGauge} /><span style={{ paddingLeft: '4px' }}>Dashboard</span>
-                                            </a>
-                                            <ul className="dropdown-menu dropdown-menu-dark">
-                                                {dashboards.map((dashboard) => (
-                                                    <li key={dashboard.id}>
-                                                        <NavLink onClick={collapseNav} to={`/dashboard/${dashboard.id}`} className="dropdown-item">{dashboard.name}</NavLink>
-                                                    </li>
-                                                ))}
-                                            </ul>
-                                        </li>
-                                    </>
-                                )}
-                            </ul>
-                            <ul className="navbar-nav ms-auto">
-                                {auth ? (
-                                    <>
-                                        <li className="dropdown">
-                                            <a className="nav-link dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                                <FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>{myUser}</span>
-                                            </a>
-                                            <ul className="dropdown-menu dropdown-menu-dark">
-                                                {isAdmin && (
-                                                <>
-                                                <li><NavLink onClick={collapseNav} to="/devices" className="dropdown-item"><FontAwesomeIcon icon={faTableList} /><span style={{ paddingLeft: '4px' }}>Device List</span></NavLink></li>
-                                                <li><NavLink onClick={collapseNav} to="/streams" className="dropdown-item"><FontAwesomeIcon icon={faVideo} /><span style={{ paddingLeft: '4px' }}>Stream List</span></NavLink></li>
-                                                <li><NavLink onClick={collapseNav} to="/dashboards" className="dropdown-item"><FontAwesomeIcon icon={faTableColumns} /><span style={{ paddingLeft: '4px' }}>Dashboards</span></NavLink></li>
-                                                <li><NavLink to="/users" className="dropdown-item"><FontAwesomeIcon icon={faUsers} /><span style={{ paddingLeft: '4px' }}>Users</span></NavLink></li>
-                                                <li><div className="dropdown-divider"></div></li> {/* Separatore */}
-                                                </>
-                                                )}
-                                                <li><NavLink onClick={collapseNav} to="/profile" className="dropdown-item"><FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>Profile</span></NavLink></li>
-                                                <li><NavLink onClick={collapseNav} to="/logout" className="dropdown-item"><FontAwesomeIcon icon={faDoorOpen} /><span>Logout</span></NavLink></li>
-                                            </ul>
-                                        </li>
-                                    </>) : (
-                                    <>
-                                        <li>
-                                            <NavLink onClick={collapseNav} to="/login" className="nav-link"><FontAwesomeIcon icon={faUser} /><span style={{ paddingLeft: '4px' }}>Log in</span></NavLink>
-                                        </li>
-                                        <li>
-                                            <NavLink onClick={collapseNav} to="/register" className="nav-link"><FontAwesomeIcon icon={faArrowRightToBracket} /><span style={{ paddingLeft: '4px' }}>Sign up</span></NavLink>
-                                        </li>
-                                    </>
-                                )}
-                            </ul>
-                        </div>
+            <header className="iotx-topbar">
+                <Link to="/" className="iotx-logo" aria-label="Home"><img src={iotxLogo} alt="iotx" /></Link>
+
+                {sessionToken && (
+                    <span className="iotx-chip" data-status={mqttStatus} role="status"
+                        title={`Devices (MQTT): ${MQTT_STATUS_TEXT[mqttStatus]}`}>
+                        <span className="iotx-chip-dot" aria-hidden="true" />
+                        {MQTT_STATUS_TEXT[mqttStatus]}
+                    </span>
+                )}
+
+                {loggedIn && (
+                    <nav className="iotx-topbar-links" aria-label="Dashboards">
+                        {dashboards.map((dashboard) => (
+                            <NavLink key={dashboard.id} to={`/dashboard/${dashboard.id}`}>{dashboard.name}</NavLink>
+                        ))}
+                    </nav>
+                )}
+
+                <span className="iotx-spacer" />
+
+                <button type="button" className="iotx-icon-btn" onClick={() => setMode(THEME_NEXT[mode])}
+                    title={`Theme: ${THEME_NAME[mode]}`} aria-label={`Theme: ${THEME_NAME[mode]}. Change theme`}>
+                    <FontAwesomeIcon icon={THEME_ICON[mode]} />
+                </button>
+
+                {loggedIn ? (
+                    <button type="button" className="iotx-icon-btn" onClick={() => setMenuOpen(true)} aria-label="Open the menu">
+                        <FontAwesomeIcon icon={faBars} />
+                    </button>
+                ) : (
+                    <Link to="/login" className="btn btn-primary">
+                        <FontAwesomeIcon icon={faArrowRightToBracket} /> Log in
+                    </Link>
+                )}
+            </header>
+
+            <Offcanvas show={menuOpen} onHide={close} placement="end" className="iotx-menu" aria-labelledby="iotx-menu-title">
+                <Offcanvas.Header closeButton>
+                    <Offcanvas.Title id="iotx-menu-title">
+                        <FontAwesomeIcon icon={faUser} className="me-2" />{username}
+                    </Offcanvas.Title>
+                </Offcanvas.Header>
+                <Offcanvas.Body>
+                    <nav className="iotx-menu-list" aria-label="Main">
+                        <NavLink to="/" end onClick={close}><FontAwesomeIcon icon={faHome} />Home</NavLink>
+                    </nav>
+
+                    {dashboards.length > 0 && (
+                        <>
+                            <div className="iotx-menu-section">Dashboards</div>
+                            <nav className="iotx-menu-list" aria-label="Dashboards">
+                                {dashboards.map((dashboard) => (
+                                    <NavLink key={dashboard.id} to={`/dashboard/${dashboard.id}`} onClick={close}>
+                                        <FontAwesomeIcon icon={faGauge} />{dashboard.name}
+                                    </NavLink>
+                                ))}
+                            </nav>
+                        </>
+                    )}
+
+                    {isAdmin && (
+                        <>
+                            <div className="iotx-menu-section">Administration</div>
+                            <nav className="iotx-menu-list" aria-label="Administration">
+                                <NavLink to="/devices" onClick={close}><FontAwesomeIcon icon={faTableList} />Devices</NavLink>
+                                <NavLink to="/streams" onClick={close}><FontAwesomeIcon icon={faVideo} />Cameras</NavLink>
+                                <NavLink to="/dashboards" end onClick={close}><FontAwesomeIcon icon={faTableColumns} />Dashboards</NavLink>
+                                <NavLink to="/users" onClick={close}><FontAwesomeIcon icon={faUsers} />Users</NavLink>
+                            </nav>
+                        </>
+                    )}
+
+                    <div className="iotx-menu-section">Theme</div>
+                    <div className="iotx-segmented" role="group" aria-label="Theme">
+                        {(['auto', 'light', 'dark'] as ThemeMode[]).map((m) => (
+                            <button key={m} type="button" aria-pressed={mode === m} onClick={() => setMode(m)}>
+                                <FontAwesomeIcon icon={THEME_ICON[m]} />{THEME_NAME[m]}
+                            </button>
+                        ))}
                     </div>
-                </nav>
-            </div>
+
+                    <div className="iotx-menu-section">Account</div>
+                    <nav className="iotx-menu-list" aria-label="Account">
+                        <NavLink to="/profile" onClick={close}><FontAwesomeIcon icon={faUser} />Profile</NavLink>
+                        <NavLink to="/logout" onClick={close}><FontAwesomeIcon icon={faDoorOpen} />Log out</NavLink>
+                    </nav>
+                </Offcanvas.Body>
+            </Offcanvas>
         </>
     );
 }

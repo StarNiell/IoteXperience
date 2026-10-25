@@ -1,163 +1,590 @@
-@font-face {
-  font-family: 'BR Cobane';
-  src: url('./assets/BRCobane-Regular.woff') format('woff');
-  font-weight: normal;
-  font-style: normal;
-  font-display: swap;
+/* IotxApp styles.
+ *
+ * Colours, radii and fonts are defined once as CSS variables ("tokens").
+ * Two themes: dark and light. The theme is chosen by ThemeProvider (theme/theme.tsx),
+ * which sets data-theme="dark|light" on <html> (also data-bs-theme for Bootstrap).
+ */
+
+:root,
+:root[data-theme="dark"] {
+  --iotx-bg: #0F1115;
+  --iotx-surface: #1A1D24;
+  --iotx-surface-2: #272B35;
+  --iotx-line: #333846;
+  --iotx-text: #E8EAF0;
+  --iotx-muted: #9AA1B2;
+  --iotx-knob-off: #8A92A3;
+  --iotx-accent: #4C8DFF;
+  --iotx-accent-text: #FFFFFF;
+  --iotx-on: #F5A524;
+  --iotx-on-ring: rgba(245, 165, 36, 0.25);
+  --iotx-ok: #3FB950;
+  --iotx-ok-ring: rgba(63, 185, 80, 0.22);
+  --iotx-warning: #D29922;
+  --iotx-danger: #E5484D;
+  --iotx-cold: #4C8DFF;
+  --iotx-hot: #E5484D;
+  --iotx-warm: #F5A524;
+  --iotx-shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  color-scheme: dark;
 }
 
-.container {
-  max-width: '100%';
-  /*background-color: 'red'*/
+:root[data-theme="light"] {
+  --iotx-bg: #F2F4F8;
+  --iotx-surface: #FFFFFF;
+  --iotx-surface-2: #E3E7EE;
+  --iotx-line: #D5DAE3;
+  --iotx-text: #161A22;
+  --iotx-muted: #5B6474;
+  --iotx-knob-off: #FFFFFF;
+  --iotx-accent: #2563EB;
+  --iotx-accent-text: #FFFFFF;
+  --iotx-on: #D98A00;
+  --iotx-on-ring: rgba(217, 138, 0, 0.22);
+  --iotx-ok: #1E8E3E;
+  --iotx-ok-ring: rgba(30, 142, 62, 0.18);
+  --iotx-warning: #B7791F;
+  --iotx-danger: #D92D2D;
+  --iotx-cold: #2563EB;
+  --iotx-hot: #D92D2D;
+  --iotx-warm: #D98A00;
+  --iotx-shadow: 0 1px 3px rgba(16, 24, 40, 0.08);
+  color-scheme: light;
 }
 
-.text-bg-badge {
-  color: #fff!important;
-  background-color: #555555!important;
+:root {
+  --iotx-radius: 18px;
+  --iotx-radius-sm: 12px;
+  --iotx-font: 'Inter Variable', 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+
+  /* Bootstrap follows the same tokens */
+  --bs-body-font-family: var(--iotx-font);
+  --bs-body-bg: var(--iotx-bg);
+  --bs-body-color: var(--iotx-text);
+  --bs-border-color: var(--iotx-line);
+  --bs-secondary-color: var(--iotx-muted);
+  --bs-link-color: var(--iotx-accent);
+  --bs-link-color-rgb: 76, 141, 255;
+}
+:root[data-theme="light"] {
+  --bs-link-color-rgb: 37, 99, 235;
 }
 
-.row.table-head{color: #fff ; background: #111111; padding: 1rem; font-weight: 500; text-transform: uppercase;}
-
-.row.striped{color: #000; padding: 1rem; background: #fff;}
-
-.row.striped:nth-child(odd){
-  background: #c0c0c0;
+html, body {
+  background: var(--iotx-bg);
+  color: var(--iotx-text);
+  font-family: var(--iotx-font);
+}
+body {
+  margin: 0;
+  -webkit-font-smoothing: antialiased;
 }
 
-.row.striped:focus,.row.striped:hover{
-  background: #a0a0a0;
+/* ---------- App shell ---------- */
+
+.iotx-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 12px 16px 32px 16px;
+  min-height: 100vh;
+  box-sizing: border-box;
 }
-.row.table-foot{color: #fff ; background: #111111; padding: 1rem; font-weight: 500; text-transform: uppercase;}
+
+.iotx-page-head {
+  padding: 8px 0 14px 0;
+}
+.iotx-page-head .iotx-eyebrow {
+  font-size: 13px;
+  color: var(--iotx-muted);
+}
+.iotx-page-head h1 {
+  margin: 2px 0 0 0;
+  font-size: 26px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.iotx-empty {
+  background: var(--iotx-surface);
+  border-radius: var(--iotx-radius);
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--iotx-muted);
+}
+
+/* ---------- Dashboard grid ---------- */
+
+/* Phone: 2 columns; tablet: 4; wide screens: 6. Wide widgets (sensor, camera) take 2. */
+.iotx-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+}
+.iotx-grid > .iotx-wide {
+  grid-column: span 2;
+}
+@media (min-width: 768px) {
+  .iotx-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+}
+@media (min-width: 1200px) {
+  .iotx-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* ---------- Widget card ---------- */
+
+.iotx-card {
+  background: var(--iotx-surface);
+  border-radius: var(--iotx-radius);
+  box-shadow: var(--iotx-shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-width: 0;
+}
+.iotx-card-head {
+  display: flex;
+  flex-wrap: wrap;            /* a long status goes under the title instead of cutting it */
+  justify-content: space-between;
+  align-items: center;
+  column-gap: 8px;
+  row-gap: 2px;
+  padding: 12px 14px 0 14px;
+  min-height: 22px;
+}
+.iotx-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.iotx-card-status {
+  font-size: 11px;
+  color: var(--iotx-muted);
+  white-space: nowrap;
+}
+/* Red header: MQTT disconnected or data too old */
+.iotx-card[data-level="danger"] .iotx-card-head {
+  background: var(--iotx-danger);
+  color: #FFFFFF;
+  padding: 8px 14px;
+}
+.iotx-card[data-level="danger"] .iotx-card-status {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+/* Amber header: the device sent no timestamp */
+.iotx-card[data-level="warning"] .iotx-card-head {
+  background: var(--iotx-warning);
+  color: #FFFFFF;
+  padding: 8px 14px;
+}
+.iotx-card[data-level="warning"] .iotx-card-status {
+  color: #FFFFFF;
+  font-weight: 600;
+}
+.iotx-card-body {
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  flex: 1;
+}
+.iotx-card[data-level="danger"] .iotx-card-control {
+  opacity: 0.45;
+}
+.iotx-card-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.iotx-card-foot {
+  font-size: 13px;
+  color: var(--iotx-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.iotx-card-foot[data-tone="danger"] { color: var(--iotx-danger); font-weight: 600; }
+.iotx-card-foot[data-tone="on"] { color: var(--iotx-on); font-weight: 600; }
+
+/* ---------- Switch (latching) ---------- */
+
+.iotx-toggle {
+  width: 56px;
+  height: 32px;
+  border-radius: 999px;
+  border: none;
+  padding: 0;
+  position: relative;
+  background: var(--iotx-surface-2);
+  cursor: pointer;
+  transition: background-color 0.2s;
+  flex: none;
+}
+.iotx-toggle::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--iotx-knob-off);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  transition: transform 0.2s, background-color 0.2s;
+}
+.iotx-toggle[aria-checked="true"] {
+  background: var(--iotx-on);
+}
+.iotx-toggle[aria-checked="true"]::after {
+  transform: translateX(24px);
+  background: #FFFFFF;
+}
+.iotx-toggle[data-pending="true"]::after {
+  animation: iotx-pulse 0.9s ease-in-out infinite;
+}
+
+/* ---------- Button (momentary) ---------- */
+
+.iotx-push {
+  width: 56px;
+  height: 32px;
+  border-radius: 999px;
+  border: 2px solid var(--iotx-accent);
+  background: transparent;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background-color 0.15s, box-shadow 0.15s, border-color 0.15s;
+  flex: none;
+}
+.iotx-push::after {
+  content: "";
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--iotx-accent);
+  transition: background-color 0.15s;
+}
+.iotx-push:active,
+.iotx-push[data-fired="true"] {
+  background: var(--iotx-on);
+  border-color: var(--iotx-on);
+  box-shadow: 0 0 0 5px var(--iotx-on-ring);
+}
+.iotx-push:active::after,
+.iotx-push[data-fired="true"]::after {
+  background: #FFFFFF;
+}
+
+.iotx-toggle:disabled,
+.iotx-push:disabled {
+  cursor: not-allowed;
+}
+.iotx-toggle:focus-visible,
+.iotx-push:focus-visible {
+  outline: 2px solid var(--iotx-accent);
+  outline-offset: 3px;
+}
+
+/* ---------- Contact ---------- */
+
+.iotx-led {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  box-sizing: border-box;
+  border: 2px solid var(--iotx-muted);
+  flex: none;
+}
+.iotx-led[data-on="true"] {
+  border: none;
+  background: var(--iotx-ok);
+  box-shadow: 0 0 0 4px var(--iotx-ok-ring);
+}
+
+/* ---------- Sensor ---------- */
+
+.iotx-sensor {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.iotx-sensor svg {
+  flex: none;
+  width: 140px;
+  height: auto;
+}
+.iotx-sensor-values {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.iotx-sensor-value {
+  font-size: 32px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+
+/* ---------- Camera ---------- */
+
+.iotx-stream-frame {
+  position: relative;
+  border-radius: var(--iotx-radius-sm);
+  background: var(--iotx-surface-2);
+  aspect-ratio: 16 / 9;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.iotx-stream-frame a {
+  width: 100%;
+  height: 100%;
+}
+.iotx-stream-frame img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.iotx-live {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--iotx-danger);
+}
+.iotx-live::before {
+  content: "";
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--iotx-danger);
+}
+
+/* ---------- Toast (Notification component) ---------- */
+
+.iotx-toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%);
+  z-index: 2000;
+  max-width: min(92vw, 480px);
+  padding: 12px 16px;
+  border-radius: var(--iotx-radius-sm);
+  color: #FFFFFF;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+  animation: iotx-toast-in 0.2s ease-out;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: 14px;
+}
+.iotx-toast strong { font-size: 13px; }
+.iotx-toast[data-type="error"] { background: var(--iotx-danger); }
+.iotx-toast[data-type="success"] { background: var(--iotx-ok); }
+.iotx-toast[data-type="warning"] { background: var(--iotx-warning); }
+
+@keyframes iotx-toast-in {
+  from { opacity: 0; transform: translate(-50%, 8px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes iotx-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .iotx-toggle, .iotx-toggle::after, .iotx-push, .iotx-push::after { transition: none; }
+  .iotx-toggle[data-pending="true"]::after { animation: none; }
+  .iotx-toast { animation: none; }
+}
+
+/* ---------- Top bar and menu ---------- */
+
+.iotx-topbar {
+  position: sticky;
+  top: 0;
+  z-index: 1020;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 0;
+  margin-bottom: 4px;
+  background: var(--iotx-bg);
+}
+.iotx-topbar .iotx-logo img {
+  height: 36px;
+  width: auto;
+  display: block;
+}
+.iotx-topbar-links {
+  display: none;
+  gap: 4px;
+  margin-left: 8px;
+  overflow-x: auto;
+}
+@media (min-width: 992px) {
+  .iotx-topbar-links { display: flex; }
+}
+.iotx-topbar-links a {
+  padding: 8px 12px;
+  border-radius: 999px;
+  color: var(--iotx-muted);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.iotx-topbar-links a:hover { color: var(--iotx-text); background: var(--iotx-surface); }
+.iotx-topbar-links a.active { color: var(--iotx-text); background: var(--iotx-surface); }
+.iotx-spacer { flex: 1; }
+
+.iotx-icon-btn {
+  width: 44px;
+  height: 44px;
+  border-radius: var(--iotx-radius-sm);
+  border: none;
+  background: var(--iotx-surface);
+  color: var(--iotx-text);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  cursor: pointer;
+}
+.iotx-icon-btn:hover { background: var(--iotx-surface-2); }
+.iotx-icon-btn:focus-visible { outline: 2px solid var(--iotx-accent); outline-offset: 2px; }
+
+/* MQTT connection chip */
+.iotx-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: var(--iotx-surface);
+  font-size: 12px;
+  color: var(--iotx-muted);
+  white-space: nowrap;
+}
+.iotx-chip-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--iotx-muted);
+  transition: background-color 0.3s;
+}
+.iotx-chip[data-status="connected"] .iotx-chip-dot { background: var(--iotx-ok); }
+.iotx-chip[data-status="connecting"] .iotx-chip-dot { background: var(--iotx-warning); }
+.iotx-chip[data-status="disconnected"] .iotx-chip-dot,
+.iotx-chip[data-status="offline"] .iotx-chip-dot { background: var(--iotx-danger); }
+
+/* Side menu (offcanvas) */
+.iotx-menu.offcanvas {
+  --bs-offcanvas-bg: var(--iotx-bg);
+  --bs-offcanvas-color: var(--iotx-text);
+  --bs-offcanvas-width: min(320px, 86vw);
+}
+.iotx-menu-section {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--iotx-muted);
+  margin: 18px 4px 6px 4px;
+}
+.iotx-menu-list {
+  background: var(--iotx-surface);
+  border-radius: var(--iotx-radius);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.iotx-menu-list a {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 13px 16px;
+  color: var(--iotx-text);
+  text-decoration: none;
+  font-size: 15px;
+  border-top: 1px solid var(--iotx-line);
+}
+.iotx-menu-list a:first-child { border-top: none; }
+.iotx-menu-list a:hover,
+.iotx-menu-list a.active { background: var(--iotx-surface-2); }
+.iotx-menu-list a svg { width: 18px; color: var(--iotx-muted); }
+
+/* Segmented control (theme choice) */
+.iotx-segmented {
+  display: flex;
+  background: var(--iotx-surface);
+  border-radius: var(--iotx-radius-sm);
+  padding: 4px;
+  gap: 4px;
+}
+.iotx-segmented button {
+  flex: 1;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--iotx-muted);
+  padding: 9px 6px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+.iotx-segmented button[aria-pressed="true"] {
+  background: var(--iotx-surface-2);
+  color: var(--iotx-text);
+}
+
+/* ---------- Admin tables (restyled in a later step) ---------- */
 
 .tableContainer {
   max-width: 1100px;
-  margin: auto  ;
+  margin: auto;
   overflow-x: auto;
 }
-
 .iotx-table {
-  border-radius: 10px;
-  background: #fff ; 
+  border-radius: var(--iotx-radius-sm);
+  background: var(--iotx-surface);
   overflow: hidden;
   width: 100%;
 }
-
 .iotx-table thead {
-  color: #fff ; background: #111111; 
+  background: var(--iotx-surface-2);
 }
-
 .iotx-table th {
-  padding: 1rem; font-weight: 900;
+  padding: 1rem;
+  font-weight: 700;
   vertical-align: middle;
-  color: #ffffff;
+  color: var(--iotx-text);
 }
-
 .iotx-table td {
   padding: 1rem;
   vertical-align: middle;
-  color: #111111;
+  color: var(--iotx-text);
+  border-top: 1px solid var(--iotx-line);
 }
-
 .iotx-table tbody tr:hover {
-  background-color: #a0a0a0;
-  color: #111111;
+  background-color: var(--iotx-surface-2);
 }
-
-.iotx-table tr:nth-child(even) {
-  background-color: #c0c0c0;
-}
-
-.navbar-dark, .navbar[data-bs-theme=dark] {
-  --bs-navbar-color: rgba(255, 255, 255, 0.55);
-  --bs-navbar-hover-color: rgba(255, 255, 255, 0.75);
-  --bs-navbar-disabled-color: rgba(255, 255, 255, 0.25);
-  --bs-navbar-active-color: #0d6efd;
-  --bs-navbar-brand-color: #fff;
-  --bs-navbar-brand-hover-color: #fff;
-  --bs-navbar-toggler-border-color: rgba(255, 255, 255, 0.1);
-  --bs-navbar-toggler-icon-bg: url(data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 30 30'%3e%3cpath stroke='rgba%28255, 255, 255, 0.55%29' stroke-linecap='round' stroke-miterlimit='10' stroke-width='2' d='M4 7h22M4 15h22M4 23h22'/%3e%3c/svg%3e);
-}
-
-.bg-dark {
-  --bs-bg-opacity: 1;
-  background-color: #111111 !important;
-}
-
-.bg-lightgray {
-  background-color: rgba(255, 255, 255, 0.55);
-}
-
-.transitionDiv {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  height: auto;
-}
-
-.hiddenDiv {
-  visibility: collapse !important;
-  height: 0px;
-}
-
-.device-ui {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.temp-hot-color {
-  background-color: red;
-}
-
-.temp-cold-color {
-  background-color: #0d6efd;
-}
-
-.temp-medium-color {
-  background-color: orange;
-}
-
-.temp-good-color {
-  background-color: green;
-}
-
-.switch-on  {
-  color: red;
-}
-
-.switch-off  {
-  color: white;
-}
-
-@keyframes inAnimation {
-  0% {
-    opacity: 0;
-    visibility: hidden;
-  }
-  100% {
-    opacity: 1;
-    visibility: visible;
-  }
-}
-
-@keyframes outAnimation {
-  0% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-    visibility: hidden;
-  }
-}
-
-@media (max-width: 767.98px) {row.table-head{display:none;} }
-/* MQTT connection indicator (navbar) */
-.mqtt-status-dot {
-  display: inline-block;
-  width: 12px;
-  height: 12px;
-  border-radius: 50%;
-  margin-left: 4px;
-  box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.15);
-  transition: background-color 0.3s;
+.text-bg-badge {
+  color: #fff !important;
+  background-color: #555555 !important;
 }

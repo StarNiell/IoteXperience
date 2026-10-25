@@ -1,4 +1,5 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import React from 'react';
 import { useAuth } from './Auth/auth.tsx';
 import Navbar from './Components/navbar.tsx';
 import Home from './Pages/home.tsx';
@@ -15,29 +16,36 @@ import Users from './Pages/users.tsx';
 import Streams from './Pages/streams.tsx';
 
 
+// Pages that need a logged-in user: otherwise go to the login page
+const RequireAuth: React.FC<{ children: React.ReactNode }> = ({ children }) => {
+  const { user } = useAuth();
+  return user?.data?.Token ? <>{children}</> : <Navigate to='/login' replace />;
+};
+
 // The MQTT connection is managed by MqttProvider (Components/mqtt.tsx):
 // it follows the login state and the page visibility by itself.
 function App() {
-
-  const { auth } = useAuth();
-
   return (
     <BrowserRouter>
-      <Navbar />
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/dashboard/:dashboardId" element={<Dashboard />} />
-        <Route path="/dashboards" element={auth ? <Dashboards /> : <Navigate to='/dashboards' />} />
-        <Route path="/dashboards/d/:dashboardId" element={<DashboardDevices />} />
-        <Route path="/dashboards/s/:dashboardId" element={<DashboardStreams />} />
-        <Route path="/devices" element={auth ? <DeviceListMqttDB /> : <Navigate to='/login' />} />
-        <Route path="/streams" element={auth ? <Streams /> : <Navigate to='/login' />} />
-        <Route path="/login" element={<Login />} />
-        <Route path="/profile" element={<Profile />} />
-        <Route path="/logout" element={<Logout />} />
-        <Route path="/register" element={<Register />} />
-        <Route path="/users" element={<Users />} />
-      </Routes>
+      <div className="iotx-shell">
+        <Navbar />
+        <main>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/dashboard/:dashboardId" element={<RequireAuth><Dashboard /></RequireAuth>} />
+            <Route path="/dashboards" element={<RequireAuth><Dashboards /></RequireAuth>} />
+            <Route path="/dashboards/d/:dashboardId" element={<RequireAuth><DashboardDevices /></RequireAuth>} />
+            <Route path="/dashboards/s/:dashboardId" element={<RequireAuth><DashboardStreams /></RequireAuth>} />
+            <Route path="/devices" element={<RequireAuth><DeviceListMqttDB /></RequireAuth>} />
+            <Route path="/streams" element={<RequireAuth><Streams /></RequireAuth>} />
+            <Route path="/login" element={<Login />} />
+            <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
+            <Route path="/logout" element={<Logout />} />
+            <Route path="/register" element={<Register />} />
+            <Route path="/users" element={<RequireAuth><Users /></RequireAuth>} />
+          </Routes>
+        </main>
+      </div>
     </BrowserRouter>
   );
 }

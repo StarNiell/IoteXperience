@@ -1,13 +1,8 @@
 import { StreamModel } from "./models/streamModel";
-import StreamViewUI from "./UI/streamview";
+import StreamWidget from "../widgets/StreamWidget";
 
-const Stream: React.FC<{ stream: StreamModel }> = ({ stream }) => {
-    let content = <StreamViewUI stream_id={stream.stream_id} />;
-    return (
-        <>
-            {content}
-        </>
-    );
-};
+const Stream: React.FC<{ stream: StreamModel }> = ({ stream }) => (
+    <StreamWidget streamId={stream.stream_id} title={stream.stream_description || stream.stream_id} />
+);
 
 export default Stream;

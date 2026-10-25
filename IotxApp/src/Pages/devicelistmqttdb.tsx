@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import Notification from '../Components/notification.tsx';
 import { DeviceModel } from '../Components/devices/models/deviceModel.tsx'; // Import DeviceModel
-import { useMqtt } from '../Components/mqtt.tsx';
+import { useMqtt } from '../Components/mqttContext.ts';
 import { useDevices } from '../Components/devices-from-db.tsx';
 import ApiCalls from '../Components/apicalls.tsx';
 import { useAuth } from '../Auth/auth.tsx';

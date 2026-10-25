@@ -7,7 +7,10 @@ import "bootstrap/dist/css/bootstrap.min.css";
 // Bootstrap Bundle JS
 import "bootstrap/dist/js/bootstrap.bundle.min";
 import { Container } from 'react-bootstrap';
+// Inter (variable font), bundled with the app: no request to external servers
+import "@fontsource-variable/inter";
 import "./App.css";
+import ThemeProvider from "./theme/ThemeProvider.tsx";
 import AuthProvider from "./Auth/auth.tsx";
 import MqttProvider from "./Components/mqtt.tsx";
 import DevicesProvider from "./Components/devices-from-db.tsx";
@@ -54,25 +57,23 @@ const root = createRoot(document.getElementById('root')!);
 loadConfig()
   .then(() => {
     root.render(
-      <Container style={{ minHeight: '100vh', paddingTop: '20px' }}>
-        <div className='rounded' style={{ backgroundColor: '#222222', minHeight: '95vh', padding: '10px' }}>
-          <StrictMode>
-            <AuthProvider>
-              <MqttProvider>
-                <DevicesProvider>
-                  <App />
-                </DevicesProvider>
-              </MqttProvider>
-            </AuthProvider>
-          </StrictMode>
-        </div>
-      </Container>
+      <StrictMode>
+        <ThemeProvider>
+          <AuthProvider>
+            <MqttProvider>
+              <DevicesProvider>
+                <App />
+              </DevicesProvider>
+            </MqttProvider>
+          </AuthProvider>
+        </ThemeProvider>
+      </StrictMode>
     );
   })
   .catch((error) => {
     console.error("Configuration not loaded:", error);
     root.render(
-      <Container style={{ paddingTop: '40px', color: '#ddd' }}>
+      <Container style={{ paddingTop: '40px' }}>
         <h4>IotxApp: configuration not available</h4>
         <p>The file <code>config.json</code> could not be read ({String(error?.message ?? error)}).</p>
         <p>Create it next to <code>index.html</code> from <code>config.example.json</code>.</p>

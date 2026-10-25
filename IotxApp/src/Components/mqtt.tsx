@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { useState, useCallback, useRef, useEffect } from 'react';
 import mqtt from "mqtt";
 import { DeviceModel } from './devices/models/deviceModel';
 import config from '../config/config';
 import ApiCalls from './apicalls';
 import { useAuth } from '../Auth/auth';
 import { usePageActive } from '../hooks/usePageActive';
+import { MqttContext, MqttStatus } from './mqttContext';
 
 // Connection to the MQTT broker (WebSocket).
 //
@@ -19,8 +20,6 @@ import { usePageActive } from '../hooks/usePageActive';
 // - When the browser reports that the network is gone, the connection is closed at once
 //   (status "offline") and opened again when the network is back. If the network is up but
 //   the broker is unreachable, the keepalive detects it within about 1.5 x KEEPALIVE_SECONDS.
-
-export type MqttStatus = "offline" | "disconnected" | "connecting" | "connected";
 
 const RECONNECT_PERIOD = 5 * 1000;
 const CONNECT_TIMEOUT = 10 * 1000;
@@ -44,22 +43,6 @@ interface DevicePayload {
   unit2?: string;
   subscription: string;
   status: string;
-}
-
-interface MqttContextValue {
-  status: MqttStatus;
-  deviceList: DeviceModel[];
-  publishMessage: (topic: string, message: string) => Promise<void>;
-}
-
-const MqttContext = createContext<MqttContextValue>({
-  status: "disconnected",
-  deviceList: [],
-  publishMessage: async () => { throw new Error("MQTT not available"); },
-});
-
-export function useMqtt() {
-  return useContext(MqttContext);
 }
 
 // Returns the payload of a device message, or null (with a warning) if it is not usable.
