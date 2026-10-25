@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { NavLink, Link } from 'react-router-dom';
+import { NavLink, Link, useLocation } from 'react-router-dom';
 import { Offcanvas } from 'react-bootstrap';
 import { useAuth } from '../Auth/auth';
 import { useMqtt, MqttStatus } from './mqttContext';
@@ -29,6 +29,8 @@ function Navbar() {
     const { status: mqttStatus } = useMqtt();
     const { mode, setMode } = useTheme();
     const [menuOpen, setMenuOpen] = useState(false);
+    const { pathname } = useLocation();
+    const onAuthPage = pathname === '/login' || pathname === '/forgot';
 
     const sessionToken = user?.data?.Token;
     const loggedIn = Boolean(auth && sessionToken);
@@ -68,7 +70,7 @@ function Navbar() {
                     <button type="button" className="iotx-icon-btn" onClick={() => setMenuOpen(true)} aria-label="Open the menu">
                         <FontAwesomeIcon icon={faBars} />
                     </button>
-                ) : (
+                ) : !onAuthPage && (
                     <Link to="/login" className="btn btn-primary">
                         <FontAwesomeIcon icon={faArrowRightToBracket} /> Log in
                     </Link>

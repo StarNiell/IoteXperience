@@ -6,7 +6,7 @@ import Home from './Pages/home.tsx';
 import DeviceListMqttDB from './Pages/devicelistmqttdb.tsx';
 import Login from './Auth/login.tsx';
 import Logout from './Auth/logout.tsx';
-import Register from './Auth/register.tsx';
+import Forgot from './Auth/forgot.tsx';
 import Dashboards from './Pages/dashboards.tsx';
 import Profile from './Pages/profile.tsx';
 import DashboardDevices from './Pages/dashboarddevices.tsx';
@@ -41,8 +41,9 @@ function App() {
             <Route path="/login" element={<Login />} />
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
             <Route path="/logout" element={<Logout />} />
-            <Route path="/register" element={<Register />} />
+            <Route path="/forgot" element={<Forgot />} />
             <Route path="/users" element={<RequireAuth><Users /></RequireAuth>} />
+            <Route path="*" element={<Navigate to='/' replace />} />
           </Routes>
         </main>
       </div>

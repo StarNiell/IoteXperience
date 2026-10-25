@@ -1,27 +1,23 @@
-import { useNavigate } from 'react-router-dom'
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../Auth/auth';
-import React from 'react';
 
+// Clears the session in this browser and goes to the login page
+// (the MQTT connection closes by itself when the session token disappears)
 function Logout() {
-
     const { setAuth, setUser, setDashboards } = useAuth();
     const navigate = useNavigate();
 
-    React.useEffect(() => {
-        // reset all data and status
+    useEffect(() => {
         setUser(null);
         setDashboards([]);
         localStorage.setItem("dashboards", "");
         localStorage.setItem("user", "");
         setAuth(false);
-        // redirect to Login page
-        navigate('/login');
-    }, [navigate]);
+        navigate('/login', { replace: true });
+    }, [navigate, setAuth, setUser, setDashboards]);
 
-    return (
-        <>
-        </>
-    );
+    return null;
 }
 
 export default Logout;

@@ -1,89 +1,80 @@
-//import { useState } from 'react'
-import { Link, useNavigate } from 'react-router-dom'
-import iotxLogo from '/iotx_blue.svg'
-import { useAuth } from '../Auth/auth.tsx';
-import ApiCalls from '../Components/apicalls.tsx';
-import config from '../config/config.ts';
 import { useState } from 'react';
-import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
+import { Link } from 'react-router-dom';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faGauge, faRotate, faChevronRight } from '@fortawesome/free-solid-svg-icons';
+import iotxLogo from '/iotx_blue.svg';
+import { useAuth } from '../Auth/auth.tsx';
+import { loadDashboards } from '../Auth/session.ts';
 import Notification from '../Components/notification.tsx';
 
 function Home() {
-    //const [count, setCount] = useState(0)
-    const { auth, user, setAuth, setUser } = useAuth();
-    const navigate = useNavigate();
-    const [dboards, setDashboards] = useState<DashboardModel[]>([]);
+    const { user, setAuth, setUser, dashboards, setDashboards } = useAuth();
     const [errorMessage, setErrorMessage] = useState('');
     const [showError, setShowError] = useState(false);
+    const [refreshing, setRefreshing] = useState(false);
+    const token = user?.data?.Token;
+    const defaultId = user?.data?.User?.dashboardid;
 
-    let username: string = user?.data?.User?.Username || 'Guest';
-
+    // Reloads the list (e.g. after an administrator added a dashboard)
     const refreshDashboards = async () => {
-        const token = user?.data?.Token;
-        const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdashboards/`, "get", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
+        if (!token) return;
+        setRefreshing(true);
+        const result = await loadDashboards(token, setAuth, setUser);
+        setRefreshing(false);
+        if (result.error) {
+            setErrorMessage(result.error);
             setShowError(true);
         } else {
-            dboards.length = 0; // Clear the array while keeping the reference
-            data.forEach((element: any) => {
-                dboards.push({ id: element.id, name: element.name, devices: [], streams: [] });   
-            });
-            setDashboards(dboards);
-            localStorage.setItem("dashboards", JSON.stringify(dboards));
-            window.location.href = "/";
+            setDashboards(result.dashboards ?? []);
         }
     };
 
+    if (!token) {
+        return (
+            <div className="iotx-hero">
+                <img src={iotxLogo} alt="iotx" />
+                <h1>Internet of things eXperience</h1>
+                <p>Control your devices and watch your cameras from anywhere.</p>
+                <Link to="/login" className="btn btn-primary">Sign in</Link>
+            </div>
+        );
+    }
+
     return (
         <>
-            <div style={{ height: '100px' }}></div>
+            <div className="iotx-page-head">
+                <div className="iotx-eyebrow">Welcome back</div>
+                <h1>{user?.data?.User?.Username}</h1>
+            </div>
 
-            <div className="d-flex justify-content-center">
-                <a href="https://www.google.it.dev" target="_blank">
-                    <img src={iotxLogo} style={{ width: '200px' }} alt="iotx logo" />
-                </a>
+            <div className="iotx-section-head">
+                <h2>Your dashboards</h2>
+                <button type="button" className="btn btn-secondary btn-sm" onClick={refreshDashboards} disabled={refreshing}>
+                    <FontAwesomeIcon icon={faRotate} spin={refreshing} className="me-2" />Refresh
+                </button>
             </div>
-            <div className="d-flex justify-content-center mt-5">
-                <center><h1>Internet of things eXperience</h1></center>
-            </div>
-            {auth && (
-            <div>
-                <div className="d-flex justify-content-center mt-5">
-                    <button className='btn btn-primary' onClick={() => navigate(`/dashboard/${user?.data.User.dashboardid}`)}>
-                        Go to Dashboard
-                    </button>
-                </div>
-                <div className="d-flex justify-content-center mt-5">
-                    <button className='btn btn-primary' onClick={refreshDashboards}>
-                        Synchronize all dashboards
-                    </button>
-                </div>
-            </div>
-            )}
-            {!auth ? (
-                <div className="d-flex justify-content-center mt-5">
-                    <p className="read-the-docs">
-                        <Link to="/login">Log in</Link> or <Link to="/register">Sign up</Link> to access the full experience
-                    </p>
-                </div>
+
+            {dashboards.length === 0 ? (
+                <div className="iotx-empty">No dashboard is assigned to your user.</div>
             ) : (
-                <div className="d-flex justify-content-center mt-5">
-                    <p className="read-the-docs">
-                        You are logged in as {username}!
-                    </p>
+                <div className="iotx-tiles">
+                    {dashboards.map((dashboard) => (
+                        <Link key={dashboard.id} to={`/dashboard/${dashboard.id}`} className="iotx-tile">
+                            <span className="iotx-tile-icon"><FontAwesomeIcon icon={faGauge} /></span>
+                            <span className="iotx-tile-text">
+                                <span className="iotx-tile-title">{dashboard.name}</span>
+                                <span className="iotx-tile-sub">Open the dashboard</span>
+                            </span>
+                            {dashboard.id === defaultId && <span className="iotx-badge">Default</span>}
+                            <FontAwesomeIcon icon={faChevronRight} className="text-secondary" />
+                        </Link>
+                    ))}
                 </div>
-            )
-            }
-            <div>
-                <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
-            </div>
+            )}
 
+            <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
         </>
-    )
+    );
 }
 
-export default Home
-
-
+export default Home;

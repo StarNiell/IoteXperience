@@ -1,92 +1,82 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../Auth/auth.tsx';
-import Notification from '../Components/notification.tsx';
-import 'bootstrap/dist/css/bootstrap.css';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import { useAuth, User } from '../Auth/auth.tsx';
 import ApiCalls from '../Components/apicalls.tsx';
 import config from '../config/config.ts';
-import { DashboardModel } from '../Components/devices/models/dashboardModel.tsx';
+import { loadDashboards } from './session.ts';
+import iotxLogo from '/iotx_blue.svg';
 
 function Login() {
-    const { setAuth, setUser } = useAuth();
-    const [showError, setShowError] = useState(false);
-    const [errorMessage, setErrorMessage] = useState('');
+    const { setAuth, setUser, setDashboards } = useAuth();
     const navigate = useNavigate();
-    const [email, setEmail] = useState('');
+    const [username, setUsername] = useState('');
     const [password, setPassword] = useState('');
-    const [dashboards, setDashboards] = useState<DashboardModel[]>([]);
+    const [showPassword, setShowPassword] = useState(false);
+    const [busy, setBusy] = useState(false);
+    const [error, setError] = useState('');
 
-    var userdata: any;
-
-    const login = async (e: { preventDefault: () => void; }) => {
+    const login = async (e: React.FormEvent) => {
         e.preventDefault();
-
-        const fetchData = async () => {
-            userdata = await ApiCalls({ username: email, password: password }, `${config.wsDatabaseUrl}/dologin/`, "post", setAuth, setUser);
-            if (userdata.error) {
-                setErrorMessage(userdata.error.message);
-                setShowError(true);
-            } else {
-                await fetchDashboards();
-                setAuth(true);
-                setUser(userdata);
-                localStorage.setItem("user", JSON.stringify(userdata));
-                navigate(`/dashboard/${userdata.data.User.dashboardid}`);
-            }
-        };
-
-        fetchData();
-    };
-
-    const fetchDashboards = async () => {
-        const token = userdata?.data?.Token;
-        const data = await ApiCalls({ token }, `${config.wsDatabaseUrl}/getdashboards/`, "get", setAuth, setUser);
-        if (data?.error) {
-            console.log(data.error.message);
-            setErrorMessage(data.error.message);
-            setShowError(true);
-        } else {
-            data.forEach((element: any) => {
-                dashboards.push({ id: element.id, name: element.name, devices: [], streams: [] });   
-            });
-            setDashboards(dashboards);
-            localStorage.setItem("dashboards", JSON.stringify(dashboards));
-
+        if (busy) return;
+        setError('');
+        if (!username.trim() || !password) {
+            setError('Enter your username (or email) and password.');
+            return;
         }
+        setBusy(true);
+        const userdata = await ApiCalls({ username: username.trim(), password }, `${config.wsDatabaseUrl}/dologin/`, "post", setAuth, setUser);
+        if (!userdata || userdata.error || !userdata.data?.Token) {
+            setBusy(false);
+            setError(userdata?.error?.status === 401
+                ? 'Wrong username or password.'
+                : `Cannot reach the server${userdata?.error?.message ? ` (${userdata.error.message})` : ''}.`);
+            return;
+        }
+        const session = userdata as User;
+        const result = await loadDashboards(session.data.Token, setAuth, setUser);
+        setDashboards(result.dashboards ?? []);
+        localStorage.setItem("user", JSON.stringify(session));
+        setUser(session);
+        setAuth(true);
+        setBusy(false);
+        const dashboardId = session.data.User.dashboardid;
+        navigate(dashboardId ? `/dashboard/${dashboardId}` : '/', { replace: true });
     };
-
 
     return (
-        <form>
-            <div className='d-flex align-items-center justify-content-center'>
-                <div className='badge p-3 rounded mt-5 mb-5' style={{ backgroundColor: "#181818", minWidth: "35%" }}  >
+        <div className="iotx-auth">
+            <div className="iotx-panel">
+                <img className="iotx-auth-logo" src={iotxLogo} alt="iotx" />
+                <h1>Sign in</h1>
+                <div className="iotx-subtitle">Internet of things eXperience</div>
+                <form className="iotx-form" onSubmit={login} noValidate>
                     <div>
-                        <h2>Login Page</h2>
+                        <label className="form-label" htmlFor="email">Username or email</label>
+                        <input id="email" className="form-control" type="text" autoComplete="username" autoCapitalize="none"
+                            value={username} onChange={(e) => setUsername(e.target.value)} />
                     </div>
-                    <div className='bg-gray p-5 rounded'>
-                        <div data-mdb-input-init className="form-outline mb-4">
-                            <input type="email" id="email" className="form-control" value={email} onChange={(e) => setEmail(e.target.value)} />
-                            <label className="form-label mt-2" htmlFor="form2Example1">Email address</label>
+                    <div>
+                        <label className="form-label" htmlFor="password">Password</label>
+                        <div className="iotx-password">
+                            <input id="password" className="form-control" type={showPassword ? "text" : "password"} autoComplete="current-password"
+                                value={password} onChange={(e) => setPassword(e.target.value)} />
+                            <button type="button" onClick={() => setShowPassword(!showPassword)}
+                                aria-label={showPassword ? "Hide password" : "Show password"}>
+                                <FontAwesomeIcon icon={showPassword ? faEyeSlash : faEye} />
+                            </button>
                         </div>
-                        <div data-mdb-input-init className="form-outline mb-4">
-                            <input type="password" id="password" className="form-control" value={password} onChange={(e) => setPassword(e.target.value)} />
-                            <label className="form-label mt-2" htmlFor="form2Example2">Password</label>
-                        </div>
-                        <div className="row mb-4">
-                            <div className="col d-flex justify-content-center">
-                                <div className="form-check">
-                                </div>
-                            </div>
-                            <div className="col">
-                                <Link className="link-light" to="/forgot">Forgot password?</Link>
-                            </div>
-                        </div>
-                        <button type="submit" onClick={login} data-mdb-button-init data-mdb-ripple-init className="btn btn-primary btn-block mb-4">Sign in</button>
                     </div>
-                </div>
+                    {error && <div className="iotx-inline-error" role="alert">{error}</div>}
+                    <button type="submit" className="btn btn-primary w-100" disabled={busy}>
+                        {busy && <span className="spinner-border spinner-border-sm me-2" aria-hidden="true" />}
+                        Sign in
+                    </button>
+                    <div className="iotx-link-row"><Link to="/forgot">Forgot password?</Link></div>
+                </form>
             </div>
-            <Notification NotificationType={"error"} NotificationMessage={errorMessage} NotificationStatus={showError} SetNotificationStatus={setShowError} />
-        </form>
+        </div>
     );
 };
 
