@@ -91,3 +91,7 @@ Each component has its own settings file, kept out of git, with an example next 
 
 Development: start the API (`npm start` in `IotxApiServer`), the video proxy if you need the
 cameras, then the app (`npm run dev` in `IotxApp`).
+
+## License
+
+[MIT](LICENSE)

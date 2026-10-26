@@ -6,6 +6,6 @@
   "scripts": {
     "start": "node recorder.js"
   },
-  "author": "Tuo Nome",
+  "author": "StarNiell",
   "license": "MIT"
 }

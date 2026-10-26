@@ -9,8 +9,8 @@
     "hash-passwords": "ts-node tools/hash-passwords.ts"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "StarNiell",
+  "license": "MIT",
   "devDependencies": {
     "@eslint/js": "^9.19.0",
     "@types/cors": "^2.8.17",
