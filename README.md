@@ -12,9 +12,9 @@ tablets and computers, in a light or dark theme.
 | Folder | What it is | Technology |
 |---|---|---|
 | [`IotxApp`](IotxApp) | Web app (dashboards and administration) | React 18, Vite, react-bootstrap, mqtt.js |
-| [`IotxApiServer`](IotxApiServer) | API: login, users, dashboards, devices, cameras, MQTT credentials | Node.js, Express, TypeScript, PostgreSQL |
-| [`IotxVideoProxyServer`](IotxVideoProxyServer) | Serves the camera streams to the app (MJPEG), with signed access tokens | Node.js, Express, ffmpeg |
-| [`IotxStreamWriter`](IotxStreamWriter) | Records camera streams | Node.js, ffmpeg |
+| [`IotxApiServer`](IotxApiServer) | API: login, users, dashboards, devices, cameras, MQTT credentials ([endpoints](IotxApiServer/README.md#endpoints)) | Node.js, Express, TypeScript, PostgreSQL |
+| [`IotxVideoProxyServer`](IotxVideoProxyServer) | Serves the camera streams to the app (MJPEG), with signed access tokens. *Optional: only for cameras* | Node.js, Express, ffmpeg |
+| [`IotxStreamWriter`](IotxStreamWriter) | Records a camera to video files. *Optional: only for cameras* | Node.js, ffmpeg |
 | [WeMosIOT](https://github.com/StarNiell/WeMosIOT) | Firmware of the devices (separate repository) | ESP8266 / ESP32, PlatformIO |
 
 Other parts of an installation: the **MQTT broker** (Mosquitto; TCP for the devices,
